@@ -1,0 +1,2 @@
+devo identificare il messaggio in questo modo il server comprende se il messaggio e stato ricevuto ed eventualmente elaborato o meno
+devo avere un lista dei messaggi che ho ricevuto ed una lista dei messaggi che ho elaborato
