@@ -68,21 +68,29 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def UpdateUser(self, request, context):
         #da gestire in modo diverso così non posso aggiornare l'utente due volte è logicamente errato
         normalized_email = normalize_email(request.email)
-        try:
-            if normalized_email in self.requestUpdate:
-                if self.requestUpdate[normalized_email] == 0:
-                    return user_pb2.UpdateUserResponse(message="Update in process...")
-                elif self.requestUpdate[normalized_email] == 1:
-                    return user_pb2.UpdateUserResponse(message="User already updated successfully")
+        key = (normalized_email, request.ticker)  # Utilizza una coppia di chiavi
 
-            self.requestUpdate[normalized_email] = 0
+        # Verifica se la chiave è già presente e controlla il suo stato
+        try:
+            if key in self.requestUpdate:
+             if self.requestUpdate[key] == 0:
+                return user_pb2.UpdateUserResponse(message="Update in process...")
+             elif self.requestUpdate[key] == 1:
+                return user_pb2.UpdateUserResponse(message="User already updated successfully")
+
+        # # Rimuovi eventuali entry precedenti con la stessa email
+            keys_to_delete = [k for k in self.requestUpdate if k[0] == normalized_email]
+            for k in keys_to_delete:
+                del self.requestUpdate[k]
+
+            self.requestUpdate[key] = 0
 
             cursor = self.conn.cursor()
             try:
                 cursor.execute("UPDATE users SET ticker = %s WHERE email = %s",
                                (request.ticker, normalized_email))
                 self.conn.commit()
-                self.requestUpdate[normalized_email] = 1
+                self.requestUpdate[key] = 1
                 return user_pb2.UpdateUserResponse(message="User updated successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
@@ -93,6 +101,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         except Exception as e:
             logging.error(f"Unexpected error: {e}")
             return user_pb2.UpdateUserResponse(message="An unexpected error occurred.")
+
 
     def DeleteUser(self, request, context):
         #devo eliminare dalla lista degli utenti creati
