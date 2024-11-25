@@ -43,7 +43,7 @@ def main():
                 conn.commit()
             except Exception as e:
                 print(f"Error fetching data for {ticker}: {e}")
-        time.sleep(3600)  # Wait for 1 hour before fetching data again
+        time.sleep(60)  
 
 if __name__ == "__main__":
     main()

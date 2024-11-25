@@ -34,6 +34,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         cursor.close()
 
     def RegisterUser(self, request, context):
+        #devo eliminare dalla lista eliminati
         normalized_email = normalize_email(request.email)
         try:
             if normalized_email in self.requestRegister:
@@ -50,6 +51,8 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                                (normalized_email, request.ticker))
                 self.conn.commit()
                 self.requestRegister[normalized_email] = 1
+                #elimino dalla lista degli utenti elimnati se presente, perchè l'utente non è più eliminato ma effettivamente esiste
+                self.requestDelete.pop(normalized_email, None)
                 logging.info(f"User {normalized_email} registered successfully.")
                 return user_pb2.RegisterUserResponse(message="User registered successfully")
             except mysql.connector.Error as db_err:
@@ -63,6 +66,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             return user_pb2.RegisterUserResponse(message="An unexpected error occurred.")
 
     def UpdateUser(self, request, context):
+        #da gestire in modo diverso così non posso aggiornare l'utente due volte è logicamente errato
         normalized_email = normalize_email(request.email)
         try:
             if normalized_email in self.requestUpdate:
@@ -91,6 +95,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             return user_pb2.UpdateUserResponse(message="An unexpected error occurred.")
 
     def DeleteUser(self, request, context):
+        #devo eliminare dalla lista degli utenti creati
         normalized_email = normalize_email(request.email)
         try:
             if normalized_email in self.requestDelete:
@@ -106,6 +111,8 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                 cursor.execute("DELETE FROM users WHERE email = %s", (normalized_email,))
                 self.conn.commit()
                 self.requestDelete[normalized_email] = 1
+                #sto eliminando dalla lista degli utenti registrati(perchè l'utente effetivamente non è più registrato)
+                self.requestRegister.pop(normalized_email, None)
                 return user_pb2.DeleteUserResponse(message="User deleted successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
