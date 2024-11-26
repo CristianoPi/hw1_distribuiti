@@ -55,6 +55,7 @@
 import time
 import mysql.connector
 import yfinance as yf
+import logging
 
 def fetch_stock_price(ticker):
     stock = yf.Ticker(ticker)
@@ -86,14 +87,15 @@ def main():
     while True:
         cursor.execute("SELECT email, ticker FROM users")
         users = cursor.fetchall()
-        print("Users fetched from database:", users)  # Stampa i risultati sulla console
+        logging.error(f"Users fetched from database: {users}")
+          # Stampa i risultati sulla console
         for email, ticker in users:
             try:
                 price = fetch_stock_price(ticker)
                 cursor.execute("INSERT INTO stock_prices (email, ticker, price, timestamp) VALUES (%s, %s, %s, NOW())",
                             (email, ticker, price))
                 conn.commit()
-                print(f"Inserted data for {email}, {ticker}: {price}")  # Stampa i dettagli dell'inserimento
+                logging.error(f"Inserdddddddted data for {email}, {ticker}: {price}")  # Stampa i dettagli dell'inserimento
                 
             except Exception as e:
                 print(f"Error fetching data for {ticker}: {e}")

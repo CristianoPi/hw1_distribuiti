@@ -35,6 +35,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
 #mettere che in caso di eccezzione la richiesta non venga salvata in cache quindi facendo una pop.
     def RegisterUser(self, request, context):
         #devo eliminare dalla lista eliminati
+        logging.error(f"Database error: agagagagaga{request.email}")
         normalized_email = normalize_email(request.email)
         try:
             if normalized_email in self.requestRegister:
@@ -143,10 +144,12 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         try:
             cursor.execute("SHOW TABLES")
             tables = cursor.fetchall()
+            self.conn.commit()
             data = []
             for table in tables:
                 cursor.execute(f"SELECT * FROM {table[0]}")
                 rows = cursor.fetchall()
+                self.conn.commit()
                 data.append(f"Table: {table[0]}")
                 for row in rows:
                     data.append(str(row))
@@ -222,6 +225,6 @@ def serve():
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()
-
+    
 if __name__ == '__main__':
     serve()
