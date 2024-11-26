@@ -139,17 +139,17 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             logging.error(f"Unexpected error: {e}")
             return user_pb2.DeleteUserResponse(message="An unexpected error occurred.")
 
+
     def GetAllData(self, request, context):
         cursor = self.conn.cursor()
         try:
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
             cursor.execute("SHOW TABLES")
             tables = cursor.fetchall()
-            self.conn.commit()
             data = []
             for table in tables:
                 cursor.execute(f"SELECT * FROM {table[0]}")
                 rows = cursor.fetchall()
-                self.conn.commit()
                 data.append(f"Table: {table[0]}")
                 for row in rows:
                     data.append(str(row))
