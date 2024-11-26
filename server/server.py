@@ -32,7 +32,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
                           (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255), ticker VARCHAR(255), price FLOAT, timestamp TIMESTAMP, FOREIGN KEY (email) REFERENCES users(email))''')
         cursor.close()
-
+#mettere che in caso di eccezzione la richiesta non venga salvata in cache quindi facendo una pop.
     def RegisterUser(self, request, context):
         #devo eliminare dalla lista eliminati
         normalized_email = normalize_email(request.email)
@@ -52,11 +52,13 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                 self.conn.commit()
                 self.requestRegister[normalized_email] = 1
                 #elimino dalla lista degli utenti elimnati se presente, perchè l'utente non è più eliminato ma effettivamente esiste
-                self.requestDelete.pop(normalized_email, None)
+                if normalized_email in self.requestDelete:
+                    self.requestDelete.pop(normalized_email, None)
                 logging.info(f"User {normalized_email} registered successfully.")
                 return user_pb2.RegisterUserResponse(message="User registered successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
+                self.requestRegister.pop(normalized_email, None)  #se va in eccezzione non conservo la richiesta in cache
                 logging.error(f"Database error: {db_err}")
                 return user_pb2.RegisterUserResponse(message="An error occurred during registration.")
             finally:
@@ -121,12 +123,15 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                 self.conn.commit()
                 self.requestDelete[normalized_email] = 1
                 #sto eliminando dalla lista degli utenti registrati(perchè l'utente effetivamente non è più registrato)
-                self.requestRegister.pop(normalized_email, None)
+                #self.requestRegister.pop(normalized_email, None)
+                if normalized_email in self.requestRegister:
+                    self.requestRegister.pop(normalized_email,None)
                 return user_pb2.DeleteUserResponse(message="User deleted successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
+                self.requestDelete.pop(normalized_email,None)
                 logging.error(f"Database error: {db_err}")
-                return user_pb2.DeleteUserResponse(message="An error occurred during deletion.")
+                return user_pb2.DeleteUserResponse(message="An error occurred during deletion. ") 
             finally:
                 cursor.close()
         except Exception as e:
@@ -168,17 +173,43 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         finally:
             cursor.close()
 
+    # def GetAverageStockValue(self, request, context):
+    #     normalized_email = normalize_email(request.email)
+    #     cursor = self.conn.cursor()
+    #     try:
+    #         cursor.execute("SELECT price FROM stock_prices WHERE email = %s AND ticker = %s ORDER BY timestamp DESC LIMIT %s", 
+    #                    (normalized_email, request.ticker, request.count))
+    #         results = cursor.fetchall()
+    #         if results:
+    #             average_value = sum([r[0] for r in results]) / len(results)
+    #             return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
+    #         else:
+    #             return user_pb2.StockValueResponse(message="No stock values found for the given email", value=0.0)
+    #     except mysql.connector.Error as db_err:
+    #         logging.error(f"Database error: {db_err}")
+    #         return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)
+    #     finally:
+    #         cursor.close()
+
     def GetAverageStockValue(self, request, context):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT price FROM stock_prices WHERE email = %s ORDER BY timestamp DESC LIMIT %s", (normalized_email, request.count))
-            results = cursor.fetchall()
-            if results:
-                average_value = sum([r[0] for r in results]) / len(results)
-                return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
+            
+            cursor.execute("SELECT ticker FROM users WHERE email = %s", (normalized_email,))
+            user_ticker = cursor.fetchone()
+            
+            if user_ticker:
+                cursor.execute("SELECT price FROM stock_prices WHERE email = %s AND ticker = %s ORDER BY timestamp DESC LIMIT %s", 
+                            (normalized_email, user_ticker[0], request.count))
+                results = cursor.fetchall()
+                if results:
+                    average_value = sum([r[0] for r in results]) / len(results)
+                    return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
+                else:
+                    return user_pb2.StockValueResponse(message="No stock values found for the given email and ticker", value=0.0)
             else:
-                return user_pb2.StockValueResponse(message="No stock values found for the given email", value=0.0)
+                return user_pb2.StockValueResponse(message="No ticker found for the given email", value=0.0)
         except mysql.connector.Error as db_err:
             logging.error(f"Database error: {db_err}")
             return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)

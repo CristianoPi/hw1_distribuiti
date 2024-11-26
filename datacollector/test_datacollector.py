@@ -57,6 +57,6 @@ def test_circuit_breaker():
         print(f"Errore dopo il recupero: {e}")
 
 if __name__ == "__main__":
-    setup_test_db()
+    #setup_test_db()
     test_fetch_stock_price()
-    test_circuit_breaker()
+    #test_circuit_breaker()
