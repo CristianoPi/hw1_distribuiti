@@ -5,10 +5,19 @@ import user_pb2_grpc
 import mysql.connector
 import logging
 
+#funzione per normalizzare le mail, la mail non è case sensitive e non è sensibile ai punti, salviamo le mail tutte minuscole e senza punti nel db per evitare di salvare due vote la stessa email, è una chiave primaria!
 def normalize_email(email):
-    local, domain = email.lower().split('@')
-    local = local.replace('.', '')
+    local, domain = email.split('@')
+    # Converte il dominio in minuscolo
+    domain = domain.lower()
+    # Normalizza la parte locale solo per i domini comuni che ignorano i punti
+    if domain in ['gmail.com', 'googlemail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com']:
+        local = local.lower()
+        local = local.replace('.', '')
+    # Mantiene la parte locale sensibile alle maiuscole per altri domini
     return f"{local}@{domain}"
+
+
 
 class UserService(user_pb2_grpc.UserServiceServicer):
 
@@ -25,41 +34,39 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         self.create_table()
         logging.basicConfig(level=logging.INFO)
 
-    def create_table(self):
+    def create_table(self):#viene eseguito la prima volta
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
                           (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(255))''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
                           (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255), ticker VARCHAR(255), price FLOAT, timestamp TIMESTAMP, FOREIGN KEY (email) REFERENCES users(email))''')
         cursor.close()
-#mettere che in caso di eccezzione la richiesta non venga salvata in cache quindi facendo una pop.
+
     def RegisterUser(self, request, context):
-        #devo eliminare dalla lista eliminati
-        logging.error(f"Database error: agagagagaga{request.email}")
         normalized_email = normalize_email(request.email)
         try:
-            if normalized_email in self.requestRegister:
+            if normalized_email in self.requestRegister:#gestione lista --> cache
                 if self.requestRegister[normalized_email] == 0:
                     return user_pb2.RegisterUserResponse(message="Registration in process...")
                 elif self.requestRegister[normalized_email] == 1:
                     return user_pb2.RegisterUserResponse(message="User already registered successfully")
 
-            self.requestRegister[normalized_email] = 0
-
+            #qui ci arriviamo solo se la richiesta non è in cache
+            self.requestRegister[normalized_email] = 0 #aggiungiamo alla cache
             cursor = self.conn.cursor()
             try:
                 cursor.execute("INSERT INTO users (email, ticker) VALUES (%s, %s)", 
                                (normalized_email, request.ticker))
                 self.conn.commit()
                 self.requestRegister[normalized_email] = 1
-                #elimino dalla lista degli utenti elimnati se presente, perchè l'utente non è più eliminato ma effettivamente esiste
+                #gestione del caso registra-elimina-registra
                 if normalized_email in self.requestDelete:
                     self.requestDelete.pop(normalized_email, None)
                 logging.info(f"User {normalized_email} registered successfully.")
                 return user_pb2.RegisterUserResponse(message="User registered successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
-                self.requestRegister.pop(normalized_email, None)  #se va in eccezzione non conservo la richiesta in cache
+                self.requestRegister.pop(normalized_email, None) #se va in eccezione non conservo la richiesta in cache
                 logging.error(f"Database error: {db_err}")
                 return user_pb2.RegisterUserResponse(message="An error occurred during registration.")
             finally:
@@ -69,11 +76,11 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             return user_pb2.RegisterUserResponse(message="An unexpected error occurred.")
 
     def UpdateUser(self, request, context):
-        #da gestire in modo diverso così non posso aggiornare l'utente due volte è logicamente errato
+        #da gestire in modo diverso la richesta non dipende solo dalla email
         normalized_email = normalize_email(request.email)
-        key = (normalized_email, request.ticker)  # Utilizza una coppia di chiavi
+        key = (normalized_email, request.ticker)  #la chiave è fatta da e-mail+ticker e non solo dalla e-mail
 
-        # Verifica se la chiave è già presente e controlla il suo stato
+        # cache --> Verifica se la chiave è già presente e controlla il suo stato
         try:
             if key in self.requestUpdate:
              if self.requestUpdate[key] == 0:
@@ -81,7 +88,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
              elif self.requestUpdate[key] == 1:
                 return user_pb2.UpdateUserResponse(message="User already updated successfully")
 
-        # # Rimuovi eventuali entry precedenti con la stessa email
+        #Rimuovi eventuali entry precedenti con la stessa email(gestione di update1-update2-update1)
             keys_to_delete = [k for k in self.requestUpdate if k[0] == normalized_email]
             for k in keys_to_delete:
                 del self.requestUpdate[k]
@@ -107,7 +114,6 @@ class UserService(user_pb2_grpc.UserServiceServicer):
 
 
     def DeleteUser(self, request, context):
-        #devo eliminare dalla lista degli utenti creati
         normalized_email = normalize_email(request.email)
         try:
             if normalized_email in self.requestDelete:
@@ -116,21 +122,21 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                 elif self.requestDelete[normalized_email] == 1:
                     return user_pb2.DeleteUserResponse(message="User already deleted successfully")
 
-            self.requestDelete[normalized_email] = 0
+            #qui arriviamo solo se la richiesta non è in cache
+            self.requestDelete[normalized_email] = 0#salvo in cahce
 
             cursor = self.conn.cursor()
             try:
                 cursor.execute("DELETE FROM users WHERE email = %s", (normalized_email,))
                 self.conn.commit()
                 self.requestDelete[normalized_email] = 1
-                #sto eliminando dalla lista degli utenti registrati(perchè l'utente effetivamente non è più registrato)
-                #self.requestRegister.pop(normalized_email, None)
+                #sto eliminando dalla lista degli utenti registrati(gestione caso delete-register-delete)
                 if normalized_email in self.requestRegister:
                     self.requestRegister.pop(normalized_email,None)
                 return user_pb2.DeleteUserResponse(message="User deleted successfully")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
-                self.requestDelete.pop(normalized_email,None)
+                self.requestDelete.pop(normalized_email,None) #se va in eccezione non conservo la richiesta in cache
                 logging.error(f"Database error: {db_err}")
                 return user_pb2.DeleteUserResponse(message="An error occurred during deletion. ") 
             finally:
@@ -143,7 +149,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def GetAllData(self, request, context):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
             cursor.execute("SHOW TABLES")
             tables = cursor.fetchall()
             data = []
@@ -164,6 +170,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()
         try:
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
             cursor.execute("SELECT price FROM stock_prices WHERE email = %s ORDER BY timestamp DESC LIMIT 1", (normalized_email,))
             result = cursor.fetchone()
             if result:
@@ -176,29 +183,12 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         finally:
             cursor.close()
 
-    # def GetAverageStockValue(self, request, context):
-    #     normalized_email = normalize_email(request.email)
-    #     cursor = self.conn.cursor()
-    #     try:
-    #         cursor.execute("SELECT price FROM stock_prices WHERE email = %s AND ticker = %s ORDER BY timestamp DESC LIMIT %s", 
-    #                    (normalized_email, request.ticker, request.count))
-    #         results = cursor.fetchall()
-    #         if results:
-    #             average_value = sum([r[0] for r in results]) / len(results)
-    #             return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
-    #         else:
-    #             return user_pb2.StockValueResponse(message="No stock values found for the given email", value=0.0)
-    #     except mysql.connector.Error as db_err:
-    #         logging.error(f"Database error: {db_err}")
-    #         return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)
-    #     finally:
-    #         cursor.close()
 
     def GetAverageStockValue(self, request, context):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()
         try:
-            
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
             cursor.execute("SELECT ticker FROM users WHERE email = %s", (normalized_email,))
             user_ticker = cursor.fetchone()
             
