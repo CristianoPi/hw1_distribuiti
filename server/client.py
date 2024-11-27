@@ -20,38 +20,56 @@ def run():
 
             match choice:
                 case '1':
-                    email = input("Inserisci l'email: ")
-                    ticker = input("Inserisci il ticker: ")
-                    response = stub.RegisterUser(user_pb2.RegisterUserRequest(email=email, ticker=ticker))
-                    print("Risposta RegisterUser:", response.message)
+                    try:
+                        email = input("Inserisci l'email: ")
+                        ticker = input("Inserisci il ticker: ")
+                        response = stub.RegisterUser(user_pb2.RegisterUserRequest(email=email, ticker=ticker))
+                        print("Risposta RegisterUser:", response.message)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '2':
-                    email = input("Inserisci l'email: ")
-                    ticker = input("Inserisci il nuovo ticker: ")
-                    response = stub.UpdateUser(user_pb2.UpdateUserRequest(email=email, ticker=ticker))
-                    print("Risposta UpdateUser:", response.message)
+                    try:
+                        email = input("Inserisci l'email: ")
+                        ticker = input("Inserisci il nuovo ticker: ")
+                        response = stub.UpdateUser(user_pb2.UpdateUserRequest(email=email, ticker=ticker))
+                        print("Risposta UpdateUser:", response.message)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '3':
-                    email = input("Inserisci l'email: ")
-                    response = stub.DeleteUser(user_pb2.DeleteUserRequest(email=email))
-                    print("Risposta DeleteUser:", response.message)
+                    try:
+                        email = input("Inserisci l'email: ")
+                        response = stub.DeleteUser(user_pb2.DeleteUserRequest(email=email))
+                        print("Risposta DeleteUser:", response.message)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '4':
-                    response = stub.GetAllData(user_pb2.Empty())
-                    print("Risposta AllData:")
-                    for data in response.data:
-                        print(data)
+                    try:
+                        response = stub.GetAllData(user_pb2.Empty())
+                        print("Risposta AllData:")
+                        for data in response.data:
+                            print(data)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '5':
-                    email = input("Inserisci l'email: ")
-                    response = stub.GetLastStockValue(user_pb2.EmailRequest(email=email))
-                    print("Risposta LastStockValue:", response.message, "Valore:", response.value)
+                    try:
+                        email = input("Inserisci l'email: ")
+                        response = stub.GetLastStockValue(user_pb2.EmailRequest(email=email))
+                        print("Risposta LastStockValue:", response.message, "Valore:", response.value)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '6':
-                    email = input("Inserisci l'email: ")
-                    count = int(input("Inserisci il numero di valori da calcolare nella media: "))
-                    response = stub.GetAverageStockValue(user_pb2.AverageStockRequest(email=email, count=count))
-                    print("Risposta AverageStockValue:", response.message, "Valore:", response.value)
+                    try:
+                        email = input("Inserisci l'email: ")
+                        count = int(input("Inserisci il numero di valori da calcolare nella media: "))
+                        response = stub.GetAverageStockValue(user_pb2.AverageStockRequest(email=email, count=count))
+                        print("Risposta AverageStockValue:", response.message, "Valore:", response.value)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
 
                 case '7':
                     print("Uscita in corso...")
