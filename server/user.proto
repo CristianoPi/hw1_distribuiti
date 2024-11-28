@@ -9,6 +9,7 @@ service UserService {
   rpc GetAllData (Empty) returns (AllDataResponse);
   rpc GetLastStockValue (EmailRequest) returns (StockValueResponse);
   rpc GetAverageStockValue (AverageStockRequest) returns (StockValueResponse);
+  rpc DeleteDataByTime (DeleteDataByTimeRequest) returns (DeleteDataByTimeResponse);
 }
 
 message RegisterUserRequest {
@@ -55,4 +56,12 @@ message StockValueResponse {
 
 message AllDataResponse {
   repeated string data = 1;
+}
+
+message DeleteDataByTimeRequest {
+    int64 start_time = 1;
+}
+
+message DeleteDataByTimeResponse {
+    string message = 1;
 }

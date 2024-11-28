@@ -4,6 +4,8 @@ import user_pb2
 import user_pb2_grpc
 import mysql.connector
 import logging
+from datetime import datetime, timedelta
+
 
 #funzione per normalizzare le mail, la mail non è case sensitive e non è sensibile ai punti, salviamo le mail tutte minuscole e senza punti nel db per evitare di salvare due vote la stessa email, è una chiave primaria!
 def normalize_email(email):
@@ -259,6 +261,26 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         except mysql.connector.Error as db_err:
             logging.error(f"Database error: {db_err}")
             return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)
+        finally:
+            cursor.close()
+
+    def DeleteDataByTime(self, request, context):
+        cursor = self.conn.cursor()
+        try:
+            current_time = datetime.now()
+            cutoff_time = current_time - timedelta(seconds=request.start_time)
+            cutoff_timestamp = cutoff_time.strftime('%Y-%m-%d %H:%M:%S')
+
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+            cursor.execute("""
+                DELETE FROM stock_prices
+                WHERE timestamp < %s
+            """, (cutoff_timestamp,))
+            self.conn.commit()
+            return user_pb2.DeleteDataByTimeResponse(message="Data deleted successfully")
+        except mysql.connector.Error as db_err:
+            logging.error(f"Database error: {db_err}")
+            return user_pb2.DeleteDataByTimeResponse(message="An error occurred while deleting data.")
         finally:
             cursor.close()
 

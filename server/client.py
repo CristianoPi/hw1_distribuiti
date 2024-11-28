@@ -14,7 +14,8 @@ def run():
             print("4. Mostra Tutti i Dati")
             print("5. Mostra Ultimo Valore Azione")
             print("6. Calcola Valore Medio Azione")
-            print("7. Esci")
+            print("7. Elimina Dati per Tempo")
+            print("8. Esci")
 
             choice = input("Inserisci la tua scelta: ")
 
@@ -70,8 +71,14 @@ def run():
                         print("Risposta AverageStockValue:", response.message, "Valore:", response.value)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
-
                 case '7':
+                    try:
+                        seconds = int(input("Inserisci l'intervallo di tempo in secondi: "))
+                        response = stub.DeleteDataByTime(user_pb2.DeleteDataByTimeRequest(start_time=seconds))
+                        print("Risposta DeleteDataByTime:", response.message)
+                    except grpc.RpcError as e:
+                        print(f"Errore gRPC: {e.code()} - {e.details()}")
+                case '8':
                     print("Uscita in corso...")
                     break
 
