@@ -34,12 +34,12 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         self.create_table()
         logging.basicConfig(level=logging.INFO)
 
-    def create_table(self):#viene eseguito la prima volta
+    def create_table(self):
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                          (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(255))''')
+                        (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(255))''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
-                          (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255), ticker VARCHAR(255), price FLOAT, timestamp TIMESTAMP, FOREIGN KEY (email) REFERENCES users(email))''')
+                        (id INT AUTO_INCREMENT PRIMARY KEY, ticker VARCHAR(10), price DECIMAL(10, 2), timestamp DATETIME)''')
         cursor.close()
 
     def RegisterUser(self, request, context):
@@ -165,13 +165,37 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             return user_pb2.AllDataResponse(data=["An error occurred while retrieving data."])
         finally:
             cursor.close()
+            
+
+    # def GetLastStockValue(self, request, context):
+    #     normalized_email = normalize_email(request.email)
+    #     cursor = self.conn.cursor()
+    #     try:
+    #         cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+    #         cursor.execute("SELECT price FROM stock_prices WHERE email = %s ORDER BY timestamp DESC LIMIT 1", (normalized_email,))
+    #         result = cursor.fetchone()
+    #         if result:
+    #             return user_pb2.StockValueResponse(message="Last stock value retrieved successfully", value=result[0])
+    #         else:
+    #             return user_pb2.StockValueResponse(message="No stock value found for the given email", value=0.0)
+    #     except mysql.connector.Error as db_err:
+    #         logging.error(f"Database error: {db_err}")
+    #         return user_pb2.StockValueResponse(message="An error occurred while retrieving the last stock value.", value=0.0)
+    #     finally:
+    #         cursor.close()
 
     def GetLastStockValue(self, request, context):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
-            cursor.execute("SELECT price FROM stock_prices WHERE email = %s ORDER BY timestamp DESC LIMIT 1", (normalized_email,))
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")  # senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+            cursor.execute("""
+                SELECT sp.price 
+                FROM stock_prices sp
+                JOIN users u ON sp.ticker = u.ticker
+                WHERE u.email = %s
+                ORDER BY sp.timestamp DESC LIMIT 1
+            """, (normalized_email,))
             result = cursor.fetchone()
             if result:
                 return user_pb2.StockValueResponse(message="Last stock value retrieved successfully", value=result[0])
@@ -184,17 +208,46 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             cursor.close()
 
 
+    # def GetAverageStockValue(self, request, context):
+    #     normalized_email = normalize_email(request.email)
+    #     cursor = self.conn.cursor()
+    #     try:
+    #         cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+    #         cursor.execute("SELECT ticker FROM users WHERE email = %s", (normalized_email,))
+    #         user_ticker = cursor.fetchone()
+            
+    #         if user_ticker:
+    #             cursor.execute("SELECT price FROM stock_prices WHERE email = %s AND ticker = %s ORDER BY timestamp DESC LIMIT %s", 
+    #                         (normalized_email, user_ticker[0], request.count))
+    #             results = cursor.fetchall()
+    #             if results:
+    #                 average_value = sum([r[0] for r in results]) / len(results)
+    #                 return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
+    #             else:
+    #                 return user_pb2.StockValueResponse(message="No stock values found for the given email and ticker", value=0.0)
+    #         else:
+    #             return user_pb2.StockValueResponse(message="No ticker found for the given email", value=0.0)
+    #     except mysql.connector.Error as db_err:
+    #         logging.error(f"Database error: {db_err}")
+    #         return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)
+    #     finally:
+    #         cursor.close()
     def GetAverageStockValue(self, request, context):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")  # senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
             cursor.execute("SELECT ticker FROM users WHERE email = %s", (normalized_email,))
             user_ticker = cursor.fetchone()
             
             if user_ticker:
-                cursor.execute("SELECT price FROM stock_prices WHERE email = %s AND ticker = %s ORDER BY timestamp DESC LIMIT %s", 
-                            (normalized_email, user_ticker[0], request.count))
+                cursor.execute("""
+                    SELECT sp.price 
+                    FROM stock_prices sp
+                    JOIN users u ON sp.ticker = u.ticker
+                    WHERE u.email = %s AND u.ticker = %s
+                    ORDER BY sp.timestamp DESC LIMIT %s
+                """, (normalized_email, user_ticker[0], request.count))
                 results = cursor.fetchall()
                 if results:
                     average_value = sum([r[0] for r in results]) / len(results)
