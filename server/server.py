@@ -39,7 +39,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
                         (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(255))''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
-                        (id INT AUTO_INCREMENT PRIMARY KEY, ticker VARCHAR(10), price DECIMAL(10, 2), timestamp DATETIME)''')
+                        (id INT AUTO_INCREMENT PRIMARY KEY, ticker VARCHAR(10), price FLOAT, timestamp TIMESTAMP)''')
         cursor.close()
 
     def RegisterUser(self, request, context):

@@ -23,6 +23,6 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS stock_prices (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ticker VARCHAR(10) NOT NULL,
-    price DECIMAL(10, 2) NOT NULL,
-    timestamp DATETIME NOT NULL
+    price FLOAT,
+    timestamp TIMESTAMP
 );

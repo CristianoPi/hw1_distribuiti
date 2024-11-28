@@ -72,8 +72,8 @@ def create_table_if_not_exists(cursor):
         CREATE TABLE IF NOT EXISTS stock_prices (
             id INT AUTO_INCREMENT PRIMARY KEY,
             ticker VARCHAR(10) NOT NULL,
-            price DECIMAL(10, 2) NOT NULL,
-            timestamp DATETIME NOT NULL
+            price FLOAT,
+            timestamp TIMESTAMP
         )
     """)
 
@@ -94,6 +94,7 @@ def main():
         create_table_if_not_exists(cursor)
         logging.info("Table check/creation done.")
         
+        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
         while True:
             logging.info("Fetching tickers from database...")
             cursor.execute("SELECT DISTINCT ticker FROM users")
