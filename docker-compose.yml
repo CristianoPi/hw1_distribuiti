@@ -19,25 +19,28 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 50
+    restart: always 
 
   server:
     build: ./server
     ports:
       - "50051:50051"
     depends_on:
-       db:
-          condition: service_healthy
+      db:
+        condition: service_healthy
     networks:
       - backend
+    restart: always  # Aggiungi questa linea
 
   datacollector:
     build: ./datacollector
     depends_on:
-       db:
+      db:
         condition: service_healthy
     networks:
       - backend
+    restart: always  
 
 networks:
   backend:
