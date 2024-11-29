@@ -15,20 +15,27 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   server:
     build: ./server
     ports:
       - "50051:50051"
     depends_on:
-      - db
+       db:
+          condition: service_healthy
     networks:
       - backend
 
   datacollector:
     build: ./datacollector
     depends_on:
-      - db
+       db:
+        condition: service_healthy
     networks:
       - backend
 
