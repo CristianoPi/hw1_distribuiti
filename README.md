@@ -6,9 +6,9 @@ Il codice del progetto è visualizzabile nelle cartelle, ogni cartella ha il nom
 
 **Deploy**
 - Portarsi da terminale al percorso .\hw1_distribuiti
-- Eseguire il comando docker-compose up --build
+- Eseguire il comando *docker-compose up --build*
 - Aspettare la creazione delle immagini dei container
-- Il Client è esguibile portandosi al percorso .\hw1_distribuiti\client ed esegundo il comando python client.py
+- Il Client è esguibile portandosi al percorso .\hw1_distribuiti\client ed esegundo il comando *python client.py*
 
 **Relazione**
 
