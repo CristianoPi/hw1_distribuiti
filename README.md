@@ -10,4 +10,4 @@ Il codice del progetto è visualizzabile nelle cartelle, ogni cartella ha il nom
 - Il Client è esguibile portandosi al percorso .\hw1_distribuiti\client ed esegundo il comando python client.py
 
 **Relazione**
-La relazione, con tutti i dettagli, si trova nella repository al seguente link:
+La relazione, con tutti i dettagli, si trova nella repository al seguente link: https://github.com/CristianoPi/hw1_distribuiti/blob/main/Relazione_HW1.pdf
