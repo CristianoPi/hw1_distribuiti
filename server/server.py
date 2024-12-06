@@ -23,6 +23,8 @@ def normalize_email(email):
 
 class UserService(user_pb2_grpc.UserServiceServicer):
 
+    #!valutare come non fare inserire nessuna soglia 
+
     def __init__(self):
         self.conn = mysql.connector.connect(
             host="db",
@@ -39,10 +41,12 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def create_table(self):
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                        (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(10))''')
+                        (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(10) low_value FLOAT, high_value FLOAT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
                         (id INT AUTO_INCREMENT PRIMARY KEY, ticker VARCHAR(10), price FLOAT, timestamp TIMESTAMP)''')
         cursor.close()
+
+    #!controllare sempre lv>hv
 
     def RegisterUser(self, request, context):
         normalized_email = normalize_email(request.email)
@@ -57,8 +61,8 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             self.requestRegister[normalized_email] = 0 #aggiungiamo alla cache
             cursor = self.conn.cursor()
             try:
-                cursor.execute("INSERT INTO users (email, ticker) VALUES (%s, %s)", 
-                               (normalized_email, request.ticker))
+                cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
+                               (normalized_email, request.ticker, request.low_value, request.high_value))
                 self.conn.commit()
                 self.requestRegister[normalized_email] = 1
                 #gestione del caso registra-elimina-registra
@@ -80,7 +84,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def UpdateUser(self, request, context):
         #da gestire in modo diverso la richesta non dipende solo dalla email
         normalized_email = normalize_email(request.email)
-        key = (normalized_email, request.ticker)  #la chiave è fatta da e-mail+ticker e non solo dalla e-mail
+        key = (normalized_email, request.ticker, request.low_value, request.high_value)  #la chiave è fatta da e-mail+ticker e non solo dalla e-mail
 
         # cache --> Verifica se la chiave è già presente e controlla il suo stato
         try:
@@ -99,8 +103,10 @@ class UserService(user_pb2_grpc.UserServiceServicer):
 
             cursor = self.conn.cursor()
             try:
-                cursor.execute("UPDATE users SET ticker = %s WHERE email = %s",
-                               (request.ticker, normalized_email))
+                cursor.execute(
+                    "UPDATE users SET ticker = %s, low_value = %s, high_value = %s WHERE email = %s",
+                    (request.ticker, request.low_value, request.high_value, normalized_email)
+                )
                 self.conn.commit()
                 self.requestUpdate[key] = 1
                 return user_pb2.UpdateUserResponse(message="User updated successfully")
@@ -114,6 +120,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             logging.error(f"Unexpected error: {e}")
             return user_pb2.UpdateUserResponse(message="An unexpected error occurred.")
 
+    #!eventualmente aggiungere funzione che modifica solamente i values
 
     def DeleteUser(self, request, context):
         normalized_email = normalize_email(request.email)
@@ -147,7 +154,6 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             logging.error(f"Unexpected error: {e}")
             return user_pb2.DeleteUserResponse(message="An unexpected error occurred.")
 
-
     def GetAllData(self, request, context):
         cursor = self.conn.cursor()
         try:
@@ -168,7 +174,6 @@ class UserService(user_pb2_grpc.UserServiceServicer):
         finally:
             cursor.close()
             
-
     def GetLastStockValue(self, request, context):
         normalized_email = normalize_email(request.email)
         cursor = self.conn.cursor()

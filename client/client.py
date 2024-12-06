@@ -24,7 +24,12 @@ def run():
                     try:
                         email = input("Inserisci l'email: ")
                         ticker = input("Inserisci il ticker: ")
-                        response = stub.RegisterUser(user_pb2.RegisterUserRequest(email=email, ticker=ticker))
+                        low_value = input("Inserisci la soglia minima: ")
+                        high_value = input("Inserisci la soglia massima")
+                        if(low_value>high_value):
+                            print("ERRORE: la soglia minima è maggiore della massima")
+                            break
+                        response = stub.RegisterUser(user_pb2.RegisterUserRequest(email=email, ticker=ticker,low_value=low_value ,high_value=high_value))
                         print("Risposta RegisterUser:", response.message)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
@@ -33,7 +38,12 @@ def run():
                     try:
                         email = input("Inserisci l'email: ")
                         ticker = input("Inserisci il nuovo ticker: ")
-                        response = stub.UpdateUser(user_pb2.UpdateUserRequest(email=email, ticker=ticker))
+                        low_value = input("Inserisci la nuova soglia minima: ")
+                        high_value = input("Inserisci la nuova soglia massima")
+                        if(low_value>high_value):
+                            print("ERRORE: la soglia minima è maggiore della massima")
+                            break
+                        response = stub.UpdateUser(user_pb2.UpdateUserRequest(email=email, ticker=ticker,low_value=low_value ,high_value=high_value))
                         print("Risposta UpdateUser:", response.message)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
