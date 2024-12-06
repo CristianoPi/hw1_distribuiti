@@ -3,7 +3,9 @@ USE users;
 
 CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) PRIMARY KEY,
-    ticker VARCHAR(10)
+    ticker VARCHAR(10),
+    low_value FLOAT,
+    high_value FLOAT
 );
 
 CREATE TABLE IF NOT EXISTS stock_prices (
