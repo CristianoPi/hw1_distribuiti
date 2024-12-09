@@ -20,7 +20,6 @@ def normalize_email(email):
     return f"{local}@{domain}"
 
 
-
 class UserService(user_pb2_grpc.UserServiceServicer):
 
     #!valutare come non fare inserire nessuna soglia 
@@ -41,7 +40,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def create_table(self):
         cursor = self.conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                        (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(10) low_value FLOAT, high_value FLOAT)''')
+                        (email VARCHAR(255) PRIMARY KEY, ticker VARCHAR(10), low_value FLOAT, high_value FLOAT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS stock_prices
                         (id INT AUTO_INCREMENT PRIMARY KEY, ticker VARCHAR(10), price FLOAT, timestamp TIMESTAMP)''')
         cursor.close()
@@ -61,6 +60,7 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             self.requestRegister[normalized_email] = 0 #aggiungiamo alla cache
             cursor = self.conn.cursor()
             try:
+                logging.info(f"il valore low : {request.low_value}.")
                 cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
                                (normalized_email, request.ticker, request.low_value, request.high_value))
                 self.conn.commit()
@@ -84,9 +84,13 @@ class UserService(user_pb2_grpc.UserServiceServicer):
     def UpdateUser(self, request, context):
         #da gestire in modo diverso la richesta non dipende solo dalla email
         normalized_email = normalize_email(request.email)
-        key = (normalized_email, request.ticker, request.low_value, request.high_value)  #la chiave è fatta da e-mail+ticker e non solo dalla e-mail
-
+        key = (normalized_email, request.ticker, request.low_value, request.high_value)  
+        #la chiave è fatta da e-mail+ticker e non solo dalla e-mail
         # cache --> Verifica se la chiave è già presente e controlla il suo stato
+         # bisogna conttrollare se si viola la condizione high_value < low_value, domanda  bisogna poter garantire all'utente la non modifica ?
+         #nel senso lasciare inalterato un o entrambi i valori ? per come è stato fatto nel client 
+         # si potrebbe usare un simbolo speciale per specificaere il non cambio , 
+         # #non puo essere ne 0.0 ne invio poiche in questo caso significa non monitorare
         try:
             if key in self.requestUpdate:
              if self.requestUpdate[key] == 0:
@@ -107,6 +111,8 @@ class UserService(user_pb2_grpc.UserServiceServicer):
                     "UPDATE users SET ticker = %s, low_value = %s, high_value = %s WHERE email = %s",
                     (request.ticker, request.low_value, request.high_value, normalized_email)
                 )
+                if cursor.rowcount == 0:
+                    return user_pb2.UpdateValueResponse(message="No user found with the specified email")  
                 self.conn.commit()
                 self.requestUpdate[key] = 1
                 return user_pb2.UpdateUserResponse(message="User updated successfully")
@@ -121,7 +127,60 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             return user_pb2.UpdateUserResponse(message="An unexpected error occurred.")
 
     #!eventualmente aggiungere funzione che modifica solamente i values
-
+    def UpdateValue(self, request, context):
+        normalized_email = normalize_email(request.email)
+        cursor = self.conn.cursor()
+        try:
+            # Recupera i valori attuali di low_value e high_value
+            cursor.execute("SELECT low_value, high_value FROM users WHERE email = %s", (normalized_email,))
+            result = cursor.fetchone()
+            
+            if result is None:
+                return user_pb2.UpdateValueResponse(message="No user found with the specified email")
+            
+            current_low_value, current_high_value = result
+            
+            # Verifica i vincoli prima di eseguire l'aggiornamento
+            if request.low_value >= 0 and request.high_value >= 0:
+                if request.low_value > request.high_value:
+                    return user_pb2.UpdateValueResponse(message="Low value cannot be greater than high value")
+                cursor.execute(
+                    "UPDATE users SET low_value = %s, high_value = %s WHERE email = %s",
+                    (request.low_value, request.high_value, normalized_email)
+                )
+            elif request.low_value < 0:
+                if current_low_value > request.high_value:
+                    return user_pb2.UpdateValueResponse(message="Low value cannot be greater than high value")
+                cursor.execute(
+                    "UPDATE users SET high_value = %s WHERE email = %s",
+                    (request.high_value, normalized_email)
+                )
+            else:
+                if request.low_value > current_high_value:
+                    return user_pb2.UpdateValueResponse(message="Low value cannot be greater than high value")
+                cursor.execute(
+                    "UPDATE users SET low_value = %s WHERE email = %s",
+                    (request.low_value, normalized_email)
+                )
+            
+            if cursor.rowcount == 0:
+                return user_pb2.UpdateValueResponse(message="No user found with the specified email")
+            
+            self.conn.commit()
+            return user_pb2.UpdateValueResponse(message="User updated value successfully")
+        except mysql.connector.Error as db_err:
+            self.conn.rollback()
+            logging.error(f"Database error: {db_err}")
+            return user_pb2.UpdateValueResponse(message="An error occurred during value update.")
+        finally:
+            cursor.close()
+       
+        #qui ho notato un problema, se si specifica un email non presente nella tabella user non darò errore in quanto eseguira la querry con tale
+        #where e si avrà come risposta "user updated value successfully" ma in realtà manco esiste tale utente da aggiornare.
+        # e controllando questo stesso problema si verifica con updateuser,
+        # bisognerebbe mettere un controllo sull'esistenza nel database della email che sis ta specificando ?
+        #problema risolto con un if sulle righe contate dopo la querry se 0 allora non c'è l'utente nella tabella.
+        
     def DeleteUser(self, request, context):
         normalized_email = normalize_email(request.email)
         try:

@@ -44,6 +44,11 @@ class UserServiceStub(object):
                 request_serializer=user__pb2.UpdateUserRequest.SerializeToString,
                 response_deserializer=user__pb2.UpdateUserResponse.FromString,
                 _registered_method=True)
+        self.UpdateValue = channel.unary_unary(
+                '/user.UserService/UpdateValue',
+                request_serializer=user__pb2.UpdateValueRequest.SerializeToString,
+                response_deserializer=user__pb2.UpdateValueResponse.FromString,
+                _registered_method=True)
         self.DeleteUser = channel.unary_unary(
                 '/user.UserService/DeleteUser',
                 request_serializer=user__pb2.DeleteUserRequest.SerializeToString,
@@ -81,6 +86,12 @@ class UserServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def UpdateUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateValue(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -128,6 +139,11 @@ def add_UserServiceServicer_to_server(servicer, server):
                     servicer.UpdateUser,
                     request_deserializer=user__pb2.UpdateUserRequest.FromString,
                     response_serializer=user__pb2.UpdateUserResponse.SerializeToString,
+            ),
+            'UpdateValue': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateValue,
+                    request_deserializer=user__pb2.UpdateValueRequest.FromString,
+                    response_serializer=user__pb2.UpdateValueResponse.SerializeToString,
             ),
             'DeleteUser': grpc.unary_unary_rpc_method_handler(
                     servicer.DeleteUser,
@@ -209,6 +225,33 @@ class UserService(object):
             '/user.UserService/UpdateUser',
             user__pb2.UpdateUserRequest.SerializeToString,
             user__pb2.UpdateUserResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateValue(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/user.UserService/UpdateValue',
+            user__pb2.UpdateValueRequest.SerializeToString,
+            user__pb2.UpdateValueResponse.FromString,
             options,
             channel_credentials,
             insecure,
