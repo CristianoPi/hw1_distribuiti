@@ -20,14 +20,14 @@ consumer.subscribe(['AlertNotificationSystem'])
 def send_email(email, alert):
     msg = MIMEText(alert)
     msg['Subject'] = 'Stock Alert'
-    msg['From'] = 'your_email@example.com'
+    msg['From'] = 'cristiano.pistorio@libero.it'
     msg['To'] = email
 
     try:
         with smtplib.SMTP('smtp.example.com', 587) as server:
             server.starttls()
-            server.login('your_email@example.com', 'your_password')
-            server.sendmail('your_email@example.com', email, msg.as_string())
+            server.login('cristiano.pistorio@libero.it', '5ZLE_i7Lh2dJ3R-')
+            server.sendmail('cristiano.pistorio@libero.it', email, msg.as_string())
             logging.info(f"Email sent to {email}: {alert}")
     except Exception as e:
         logging.error(f"Error sending email: {e}")
