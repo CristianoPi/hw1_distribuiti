@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install mysql-connector-python yfinance circuitbreaker
+RUN pip install mysql-connector-python yfinance circuitbreaker confluent_kafka
 
-CMD ["python", "datacollector.py"]
+CMD ["python", "data_collector.py"]

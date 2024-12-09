@@ -1,3 +1,54 @@
+# version: '3.8'
+
+# services:
+#   db:
+#     image: mysql:8.0
+#     environment:
+#       MYSQL_ROOT_PASSWORD: rootpassword
+#       MYSQL_DATABASE: users
+#       MYSQL_USER: user
+#       MYSQL_PASSWORD: password
+#     ports:
+#       - "8081:3306"  # Mappa la porta 3306 del container alla porta 8081 del sistema
+#     volumes:
+#       - db_data:/var/lib/mysql
+#       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+#     networks:
+#       - backend
+#     healthcheck:
+#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 50
+#     restart: always 
+
+#   server:
+#     build: ./server
+#     ports:
+#       - "50051:50051"
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     networks:
+#       - backend
+#     restart: always  # Aggiungi questa linea
+
+#   datacollector:
+#     build: ./datacollector
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     networks:
+#       - backend
+#     restart: always  
+
+# networks:
+#   backend:
+#     driver: bridge
+
+# volumes:
+#   db_data:
+
 version: '3.8'
 
 services:
@@ -9,7 +60,7 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     ports:
-      - "8081:3306"  # Mappa la porta 3306 del container alla porta 8081 del sistema
+      - "8081:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -31,7 +82,7 @@ services:
         condition: service_healthy
     networks:
       - backend
-    restart: always  # Aggiungi questa linea
+    restart: always
 
   datacollector:
     build: ./datacollector
@@ -40,10 +91,52 @@ services:
         condition: service_healthy
     networks:
       - backend
-    restart: always  
+    restart: always
+
+  alert_system:
+    build: ./alertsystem
+    depends_on:
+      - kafka
+    networks:
+      - backend
+      - kafka_network
+    restart: always
+
+  alert_notification_system:
+    build: ./alertnotificationsystem
+    depends_on:
+      - kafka
+    networks:
+      - backend
+      - kafka_network
+    restart: always
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka_network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka_network
 
 networks:
   backend:
+    driver: bridge
+  kafka_network:
     driver: bridge
 
 volumes:

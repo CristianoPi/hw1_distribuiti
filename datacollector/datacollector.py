@@ -1,13 +1,28 @@
 import time
 import logging
 import mysql.connector
-import yfinance as yf
+from confluent_kafka import Producer
 from circuit_breaker import CircuitBreaker
+
+#non cambia quasi nulla notifichiamo solamente ad alert system quando aggiorniamo il tutto
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
+
+# Configura il producer Kafka
+conf = {
+    'bootstrap.servers': 'kafka:9092',
+    'client.id': 'data_collector'
+}
+producer = Producer(conf)
+
+def delivery_report(err, msg):
+    if err is not None:
+        logging.error(f"Message delivery failed: {err}")
+    else:
+        logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 def fetch_stock_price(ticker):
     stock = yf.Ticker(ticker)
@@ -40,7 +55,7 @@ def main():
         create_table_if_not_exists(cursor)
         logging.info("Table check/creation done.")
         
-        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
         while True:
             logging.info("Fetching tickers from database...")
             cursor.execute("SELECT DISTINCT ticker FROM users")
@@ -67,7 +82,11 @@ def main():
                 except Exception as e:
                     logging.error(f"Error inserting data for {ticker}: {e}")
             
-            time.sleep(60)
+            # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
+            producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
+            producer.flush()
+            
+            time.sleep(1800)
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
     finally:
