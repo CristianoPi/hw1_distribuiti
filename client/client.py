@@ -35,19 +35,14 @@ def run():
                         try:
                             email = input("Inserisci l'email: ")
                             ticker = input("Inserisci il ticker: ")
-                            # low_value = input("Inserisci la soglia minima: (fare solo invio se si desidera non specificare il valore)  ")
-                            # high_value = input("Inserisci la soglia massima: (fare solo invio se si desidera non specificare il valore)  ")
-                            
-                            # # Converti i valori di input in float se non sono vuoti
-                            # low_value = float(low_value) if low_value else 0
-                            # high_value = float(high_value) if high_value else 0
                             low_value,high_value = soglia()
                             print(low_value)
                             if(low_value<0 or high_value<0):
                                 print("ERRORE: specificata una soglia negativa, riprovare ")
-                                
+            
                             elif low_value>0 and high_value>0 and low_value > high_value:
                                 print("ERRORE: la soglia minima è maggiore della massima")
+
                         except ValueError:
                             print("ERRORE: Inserisci un valore numerico valido per le soglie.")    
                         else:
@@ -82,10 +77,7 @@ def run():
 
                             email = input("Inserisci l'email: ")
                             print("istruzioni per inserimento: \n n=0 o invio --> non monitorare quella soglia, \n n<0 --> lasciare il vecchio valore monitorato , \n n>0 --> nuovo valore da inserire")
-                            # low_value=input("inserire il valore low della soglia: ")
-                            # high_value=input("inserire il valore high della soglia: ")
-                            # low_value=float(low_value) if low_value else 0
-                            # high_value=float(high_value) if low_value else 0
+                            
                             low_value,high_value=soglia()
                             if low_value >0 and high_value >0 and low_value > high_value:
                                 print("ERRORE: la soglia minima è maggiore della massima")

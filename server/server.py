@@ -61,15 +61,18 @@ class UserService(user_pb2_grpc.UserServiceServicer):
             cursor = self.conn.cursor()
             try:
                 logging.info(f"il valore low : {request.low_value}.")
-                cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
-                               (normalized_email, request.ticker, request.low_value, request.high_value))
-                self.conn.commit()
-                self.requestRegister[normalized_email] = 1
-                #gestione del caso registra-elimina-registra
-                if normalized_email in self.requestDelete:
-                    self.requestDelete.pop(normalized_email, None)
-                logging.info(f"User {normalized_email} registered successfully.")
-                return user_pb2.RegisterUserResponse(message="User registered successfully")
+                if request.low_value >=0 and request.high_value<=0 and request.low_value<=request.high_value :
+                    cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
+                                (normalized_email, request.ticker, request.low_value, request.high_value))
+                    self.conn.commit()
+                    self.requestRegister[normalized_email] = 1
+                    #gestione del caso registra-elimina-registra
+                    if normalized_email in self.requestDelete:
+                        self.requestDelete.pop(normalized_email, None)
+                    logging.info(f"User {normalized_email} registered successfully.")
+                    return user_pb2.RegisterUserResponse(message="User registered successfully")
+                else :
+                    return user_pb2.RegisterUserResponse(message=" invalid value ")
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
                 self.requestRegister.pop(normalized_email, None) #se va in eccezione non conservo la richiesta in cache
@@ -107,15 +110,18 @@ class UserService(user_pb2_grpc.UserServiceServicer):
 
             cursor = self.conn.cursor()
             try:
-                cursor.execute(
-                    "UPDATE users SET ticker = %s, low_value = %s, high_value = %s WHERE email = %s",
-                    (request.ticker, request.low_value, request.high_value, normalized_email)
-                )
-                if cursor.rowcount == 0:
-                    return user_pb2.UpdateValueResponse(message="No user found with the specified email")  
-                self.conn.commit()
-                self.requestUpdate[key] = 1
-                return user_pb2.UpdateUserResponse(message="User updated successfully")
+                if request.low_value >=0 and request.high_value<=0 and request.low_value<=request.high_value :
+                    cursor.execute(
+                        "UPDATE users SET ticker = %s, low_value = %s, high_value = %s WHERE email = %s",
+                        (request.ticker, request.low_value, request.high_value, normalized_email)
+                    )
+                    if cursor.rowcount == 0:
+                        return user_pb2.UpdateValueResponse(message="No user found with the specified email")  
+                    self.conn.commit()
+                    self.requestUpdate[key] = 1
+                    return user_pb2.UpdateUserResponse(message="User updated successfully")
+                else:
+                  return user_pb2.UpdateUserResponse(message="User updated fault: invalid value")  
             except mysql.connector.Error as db_err:
                 self.conn.rollback()
                 logging.error(f"Database error: {db_err}")
