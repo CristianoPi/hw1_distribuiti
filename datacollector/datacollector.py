@@ -14,7 +14,7 @@ circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
 # Configura il producer Kafka
 conf = {
     'bootstrap.servers': 'kafka:9092',
-    'client.id': 'data_collector'
+    'client.id': 'datacollector'
 }
 producer = Producer(conf)
 

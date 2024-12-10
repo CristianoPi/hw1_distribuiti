@@ -2,15 +2,18 @@ syntax = "proto3";
 
 package user;
 
-service UserService {
+service UserCommandService {
   rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
   rpc UpdateUser (UpdateUserRequest) returns (UpdateUserResponse);
-  rpc UpdateValue(UpdateValueRequest) returns (UpdateValueResponse);
+  rpc UpdateValue (UpdateValueRequest) returns (UpdateValueResponse);
   rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+  rpc DeleteDataByTime (DeleteDataByTimeRequest) returns (DeleteDataByTimeResponse);
+}
+
+service UserQueryService {
   rpc GetAllData (Empty) returns (AllDataResponse);
   rpc GetLastStockValue (EmailRequest) returns (StockValueResponse);
   rpc GetAverageStockValue (AverageStockRequest) returns (StockValueResponse);
-  rpc DeleteDataByTime (DeleteDataByTimeRequest) returns (DeleteDataByTimeResponse);
 }
 
 message RegisterUserRequest {
@@ -74,9 +77,9 @@ message AllDataResponse {
 }
 
 message DeleteDataByTimeRequest {
-    int64 start_time = 1;
+  int64 start_time = 1;
 }
 
 message DeleteDataByTimeResponse {
-    string message = 1;
+  string message = 1;
 }
