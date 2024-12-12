@@ -2,7 +2,7 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from confluent_kafka import Consumer, KafkaError
-import json
+import time
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,25 +17,39 @@ conf = {
 consumer = Consumer(conf)
 consumer.subscribe(['AlertNotificationSystem'])
 
-def send_email(email, alert):
+# Configura le impostazioni email
+email_conf = {
+    'smtp_server': 'smtp.gmail.com',
+    'smtp_port': 587,
+    'smtp_user': 'cristiano.pistorio@gmail.com',
+    'smtp_password': 'iiujymduizmhgmvf',
+    'from_email': 'cristiano.pistorio@gmail.com'
+}
+
+def send_email(email, alert, email_conf):
     msg = MIMEText(alert)
     msg['Subject'] = 'Stock Alert'
-    msg['From'] = 'cristiano.pistorio@libero.it'
+    msg['From'] = email_conf['from_email']
     msg['To'] = email
 
     try:
-        with smtplib.SMTP('smtp.example.com', 587) as server:
+        logging.info("Connessione al server SMTP...")
+        with smtplib.SMTP(email_conf['smtp_server'], email_conf['smtp_port'], timeout=50) as server:
+            logging.info("Starting process...")
             server.starttls()
-            server.login('cristiano.pistorio@libero.it', '5ZLE_i7Lh2dJ3R-')
-            server.sendmail('cristiano.pistorio@libero.it', email, msg.as_string())
+            server.login(email_conf['smtp_user'], email_conf['smtp_password'])
+            logging.info("Connessione SMTP...")
+            server.sendmail(email_conf['from_email'], email, msg.as_string())
             logging.info(f"Email sent to {email}: {alert}")
     except Exception as e:
         logging.error(f"Error sending email: {e}")
 
 def process_message(message):
-    alert = json.loads(message.value().decode('utf-8'))
+    alert = message.value().decode('utf-8')
     logging.info(f"Received alert: {alert}")
-    send_email(alert['email'], json.dumps(alert))
+    # Supponiamo che l'email sia fissa per questo esempio
+    email = 'cristianopistorio@gmail.com'
+    send_email(email, alert, email_conf)
 
 def main():
     try:
@@ -50,11 +64,14 @@ def main():
                     logging.error(msg.error())
                     break
             process_message(msg)
+            # Commit dell'offset dopo aver processato il messaggio
+            consumer.commit(asynchronous=False)
     except Exception as e:
         logging.error(f"Error in AlertNotificationSystem: {e}")
     finally:
         consumer.close()
         logging.info("Consumer closed.")
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
+    time.sleep(20)
     main()

@@ -91,6 +91,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - kafka_network
     restart: always
 
   # alert_system:
@@ -155,6 +156,7 @@ services:
   #   networks:
   #     - kafka_network
 
+<<<<<<< Updated upstream
   # kafka_create_topics:
   #   image: confluentinc/cp-kafka:latest
   #   depends_on:
@@ -163,6 +165,8 @@ services:
   #   networks:
   #     - kafka_network
 
+=======
+>>>>>>> Stashed changes
 networks:
   backend:
     driver: bridge

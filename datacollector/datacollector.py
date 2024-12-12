@@ -1,6 +1,7 @@
 import time
 import logging
 import mysql.connector
+import yfinance as yf
 from confluent_kafka import Producer
 from circuit_breaker import CircuitBreaker
 
@@ -85,8 +86,9 @@ def main():
             # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
             producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
             producer.flush()
-            
-            time.sleep(1800)
+            time.sleep(60)
+
+    
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
     finally:

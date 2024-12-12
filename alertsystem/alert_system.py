@@ -1,10 +1,11 @@
+import time
 import logging
 import mysql.connector
 import json
 from confluent_kafka import Consumer, KafkaError, Producer
 
 # Configura il logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(livello)s - %(messaggio)s')
 
 # Configura il consumer Kafka
 consumer_conf = {
@@ -28,24 +29,39 @@ def delivery_report(err, msg):
     else:
         logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
-def check_thresholds_and_alert(cursor):
+def check_thresholds_and_alert(cursor, conn):
     cursor.execute("""
-        SELECT users.email, stock_prices.ticker, stock_prices.price, users.low_value, users.high_value
+        SELECT users.email, stock_prices.ticker, stock_prices.price, users.low_value, users.high_value, stock_prices.timestamp
         FROM stock_prices
         JOIN users ON stock_prices.ticker = users.ticker
+        WHERE stock_prices.timestamp = (
+            SELECT MAX(sp.timestamp)
+            FROM stock_prices sp
+            WHERE sp.ticker = users.ticker
+        )
     """)
     rows = cursor.fetchall()
+    logging.info(f"SONO QUI, lunghezza rows: {len(rows)}")
     for row in rows:
-        email, ticker, price, low_value, high_value = row
+        email, ticker, price, low_value, high_value, timestamp = row 
         if price < low_value or price > high_value:
             alert_message = {
                 'email': email,
                 'ticker': ticker,
                 'stock_value': price,
+                'timestamp':timestamp,
                 'alert': 'Stock value out of bounds'
             }
-            producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
+            # producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
+            producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
             producer.flush()
+            
+            # Aggiorna i valori di soglia nel database
+            # if low_value is not None and price < low_value:
+            #     cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
+            # if high_value is not None and price > high_value:
+            #     cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
+            # conn.commit()
 
 def process_message(message):
     alert = message.value().decode('utf-8')
@@ -59,7 +75,7 @@ def process_message(message):
                 database="users"
             )
             cursor = conn.cursor()
-            check_thresholds_and_alert(cursor)
+            check_thresholds_and_alert(cursor, conn)
         except mysql.connector.Error as db_err:
             logging.error(f"Database connection error: {db_err}")
         finally:
@@ -81,6 +97,7 @@ def main():
                     logging.error(msg.error())
                     break
             process_message(msg)
+    
     except Exception as e:
         logging.error(f"Error in AlertSystem: {e}")
     finally:
