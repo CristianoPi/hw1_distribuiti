@@ -85,8 +85,11 @@ def main():
             
             # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
             producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
+            logging.info("eseguito il produce ")
             producer.flush()
+            logging.info("mi  addormento ")
             time.sleep(60)
+            logging.info("mi sveglio dopo 60 secondi")
 
     
     except mysql.connector.Error as db_err:

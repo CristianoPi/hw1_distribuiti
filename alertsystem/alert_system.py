@@ -5,13 +5,14 @@ import json
 from confluent_kafka import Consumer, KafkaError, Producer
 
 # Configura il logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(livello)s - %(messaggio)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Configura il consumer Kafka
 consumer_conf = {
     'bootstrap.servers': 'kafka:9092',
     'group.id': 'alert_group',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
+    'enable.auto.commit': False  # Disabilita il commit automatico
 }
 consumer = Consumer(consumer_conf)
 consumer.subscribe(['AlertSystem'])
@@ -19,7 +20,8 @@ consumer.subscribe(['AlertSystem'])
 # Configura il producer Kafka per inviare notifiche
 producer_conf = {
     'bootstrap.servers': 'kafka:9092',
-    'client.id': 'alert_system'
+    'client.id': 'alert_system',
+    'enable.auto.commit': False
 }
 producer = Producer(producer_conf)
 
@@ -49,11 +51,11 @@ def check_thresholds_and_alert(cursor, conn):
                 'email': email,
                 'ticker': ticker,
                 'stock_value': price,
-                'timestamp':timestamp,
+                'timestamp':timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Converti datetime in stringa
                 'alert': 'Stock value out of bounds'
             }
-            # producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
-            producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
+            producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
+            #producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
             producer.flush()
             
             # Aggiorna i valori di soglia nel database
@@ -83,6 +85,8 @@ def process_message(message):
                 cursor.close()
                 conn.close()
                 logging.info("Database connection closed.")
+    consumer.commit(asynchronous=False)  # Commit dell'offset dopo aver processato il messaggio
+    logging.info("Offset committed")            
 
 def main():
     try:
