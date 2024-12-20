@@ -3,13 +3,17 @@ import user_pb2
 import user_pb2_grpc
 
 def soglia():
-    low_value = input("Inserisci la soglia minima: (fare solo invio se si desidera non specificare il valore)  ")
-    high_value = input("Inserisci la soglia massima: (fare solo invio se si desidera non specificare il valore)  ")
-    
-    # Converti i valori di input in float se non sono vuoti
-    low_value = float(low_value) if low_value else 0
-    high_value = float(high_value) if high_value else 0
-    return low_value, high_value
+    try:
+        low_value = input("Inserisci la soglia minima: (fare solo invio se si desidera non specificare il valore)  ")
+        high_value = input("Inserisci la soglia massima: (fare solo invio se si desidera non specificare il valore)  ")
+        
+        # Converti i valori di input in float se non sono vuoti
+        low_value = float(low_value) if low_value else 0
+        high_value = float(high_value) if high_value else 0
+        return low_value, high_value
+    except ValueError as e:
+        print(f"Errore: {e}")
+        return None, None
 
 def run():
     with grpc.insecure_channel('localhost:50051') as channel:
@@ -36,18 +40,19 @@ def run():
                         email = input("Inserisci l'email: ")
                         ticker = input("Inserisci il ticker: ")
                         low_value, high_value = soglia()
-                        if low_value < 0 or high_value < 0:
-                            print("ERRORE: specificata una soglia negativa, riprovare ")
-                        elif low_value > 0 and high_value > 0 and low_value > high_value:
-                            print("ERRORE: la soglia minima è maggiore della massima")
-                        else:
-                            response = command_stub.RegisterUser(user_pb2.RegisterUserRequest(
-                                email=email, 
-                                ticker=ticker, 
-                                low_value=low_value, 
-                                high_value=high_value 
-                            ))
-                            print("Risposta RegisterUser:", response.message)
+                        if low_value != None and high_value != None:
+                            if low_value < 0 or high_value < 0:
+                                print("ERRORE: specificata una soglia negativa, riprovare ")
+                            elif low_value > 0 and high_value > 0 and low_value > high_value:
+                                print("ERRORE: la soglia minima è maggiore della massima")
+                            else:
+                                response = command_stub.RegisterUser(user_pb2.RegisterUserRequest(
+                                    email=email, 
+                                    ticker=ticker, 
+                                    low_value=low_value, 
+                                    high_value=high_value 
+                                ))
+                                print("Risposta RegisterUser:", response.message)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
 
@@ -56,18 +61,19 @@ def run():
                         email = input("Inserisci l'email: ")
                         ticker = input("Inserisci il nuovo ticker: ")
                         low_value, high_value = soglia()
-                        if low_value < 0 or high_value < 0:
-                            print("ERRORE: specificata una soglia negativa, riprovare ")
-                        elif low_value > 0 and high_value > 0 and low_value > high_value:
-                            print("ERRORE: la soglia minima è maggiore della massima")
-                        else:
-                            response = command_stub.UpdateUser(user_pb2.UpdateUserRequest(
-                                email=email, 
-                                ticker=ticker, 
-                                low_value=low_value, 
-                                high_value=high_value
-                            ))
-                            print("Risposta UpdateUser:", response.message)
+                        if low_value != None and high_value != None:
+                            if low_value < 0 or high_value < 0:
+                                print("ERRORE: specificata una soglia negativa, riprovare ")
+                            elif low_value > 0 and high_value > 0 and low_value > high_value:
+                                print("ERRORE: la soglia minima è maggiore della massima")
+                            else:
+                                response = command_stub.UpdateUser(user_pb2.UpdateUserRequest(
+                                    email=email, 
+                                    ticker=ticker, 
+                                    low_value=low_value, 
+                                    high_value=high_value
+                                ))
+                                print("Risposta UpdateUser:", response.message)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
 
@@ -76,15 +82,16 @@ def run():
                         email = input("Inserisci l'email: ")
                         print("Istruzioni per inserimento: \n n=0 o invio --> non monitorare quella soglia, \n n<0 --> lasciare il vecchio valore monitorato , \n n>0 --> nuovo valore da inserire")
                         low_value, high_value = soglia()
-                        if low_value > 0 and high_value > 0 and low_value > high_value:
-                            print("ERRORE: la soglia minima è maggiore della massima")
-                        else:
-                            response = command_stub.UpdateValue(user_pb2.UpdateValueRequest(
-                                email=email, 
-                                low_value=low_value, 
-                                high_value=high_value
-                            ))
-                            print("Risposta UpdateValue:", response.message)
+                        if low_value != None and high_value != None:
+                            if low_value > 0 and high_value > 0 and low_value > high_value:
+                                print("ERRORE: la soglia minima è maggiore della massima")
+                            else:
+                                response = command_stub.UpdateValue(user_pb2.UpdateValueRequest(
+                                    email=email, 
+                                    low_value=low_value, 
+                                    high_value=high_value
+                                ))
+                                print("Risposta UpdateValue:", response.message)
                     except grpc.RpcError as e:
                         print(f"Errore gRPC: {e.code()} - {e.details()}")
 

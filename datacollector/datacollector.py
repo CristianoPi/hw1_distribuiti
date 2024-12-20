@@ -72,7 +72,7 @@ def main():
                     logging.info(f"Fetched data for {ticker}: {price}")
                 except Exception as e:
                     logging.error(f"Error fetching data for {ticker}: {e}")
-            
+            inserted = False
             for ticker, price in results.items():
                 try:
                     logging.info(f"Inserting data into database for ticker: {ticker}, price: {price}")
@@ -80,16 +80,17 @@ def main():
                                    (ticker, price))
                     conn.commit()
                     logging.info(f"Inserted data for {ticker}: {price}")
+                    inserted=True
                 except Exception as e:
                     logging.error(f"Error inserting data for {ticker}: {e}")
-            
-            # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
-            producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
-            logging.info("eseguito il produce ")
-            producer.flush()
-            logging.info("mi  addormento ")
+            if inserted :
+                # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
+                producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
+                #logging.info("eseguito il produce ")
+                producer.flush()
+            #logging.info("mi  addormento ")
             time.sleep(60)
-            logging.info("mi sveglio dopo 60 secondi")
+             #logging.info("mi sveglio dopo 60 secondi")
 
     
     except mysql.connector.Error as db_err:

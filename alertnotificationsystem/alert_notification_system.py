@@ -52,9 +52,9 @@ def process_message(message):
     #email = 'cristianopistorio@gmail.com'
     #email='giusepperomano2000ct@gmail.com'
     alert_data = json.loads(alert)
-    email = alert_data.get('email', 'default@example.com')  # Usa l'email dal messaggio, con un valore di default
+    email = alert_data.get('email')  # Usa l'email dal messaggio, con un valore di default
     send_email(email, alert, email_conf)
-    consumer.commit(asynchronous=False)  # Commit dell'offset dopo aver processato il messaggio
+    consumer.commit(asynchronous=False)
 
 def main():
     try:

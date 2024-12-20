@@ -46,24 +46,41 @@ def check_thresholds_and_alert(cursor, conn):
     logging.info(f"SONO QUI, lunghezza rows: {len(rows)}")
     for row in rows:
         email, ticker, price, low_value, high_value, timestamp = row 
-        if price < low_value or price > high_value:
+        if low_value !=0 and price < low_value :
             alert_message = {
                 'email': email,
                 'ticker': ticker,
                 'stock_value': price,
                 'timestamp':timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Converti datetime in stringa
-                'alert': 'Stock value out of bounds'
-            }
+                'alert': 'Stock value out of lower limit, the new threshold value will be this value'
+            } 
             producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
             #producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
             producer.flush()
-            
             # Aggiorna i valori di soglia nel database
-            # if low_value is not None and price < low_value:
-            #     cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
-            # if high_value is not None and price > high_value:
-            #     cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
-            # conn.commit()
+            if low_value is not None and price < low_value:
+                cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
+            if high_value is not None and price > high_value:
+                cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
+            conn.commit()
+
+        if high_value!=0 and price > high_value :
+            alert_message = {
+                'email': email,
+                'ticker': ticker,
+                'stock_value': price,
+                'timestamp':timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Converti datetime in stringa
+                'alert': 'Stock value out of upper limit, the new threshold value will be this value'
+            } 
+            producer.produce('AlertNotificationSystem', key=ticker, value=json.dumps(alert_message), callback=delivery_report)
+            #producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
+            producer.flush()
+            # Aggiorna i valori di soglia nel database
+            if low_value is not None and price < low_value:
+                cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
+            if high_value is not None and price > high_value:
+                cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
+            conn.commit()
 
 def process_message(message):
     alert = message.value().decode('utf-8')
@@ -85,7 +102,7 @@ def process_message(message):
                 cursor.close()
                 conn.close()
                 logging.info("Database connection closed.")
-    consumer.commit(asynchronous=False)  # Commit dell'offset dopo aver processato il messaggio
+    consumer.commit(asynchronous=False)
     logging.info("Offset committed")            
 
 def main():
