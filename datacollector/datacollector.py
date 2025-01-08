@@ -2,12 +2,28 @@ import time
 import logging
 import mysql.connector
 import yfinance as yf
+from confluent_kafka import Producer
 from circuit_breaker import CircuitBreaker
+
+#non cambia quasi nulla notifichiamo solamente ad alert system quando aggiorniamo il tutto
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
+
+# Configura il producer Kafka
+conf = {
+    'bootstrap.servers': 'kafka:9092',
+    'client.id': 'datacollector'
+}
+producer = Producer(conf)
+
+def delivery_report(err, msg):
+    if err is not None:
+        logging.error(f"Message delivery failed: {err}")
+    else:
+        logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 def fetch_stock_price(ticker):
     stock = yf.Ticker(ticker)
@@ -40,7 +56,7 @@ def main():
         create_table_if_not_exists(cursor)
         logging.info("Table check/creation done.")
         
-        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED") #senza questo comando ogni operazione di lettura verrebbe fatta attraverso un snapshot del db ciò provocherebbe dei problemi nell'aggiornamento
+        cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
         while True:
             logging.info("Fetching tickers from database...")
             cursor.execute("SELECT DISTINCT ticker FROM users")
@@ -56,7 +72,7 @@ def main():
                     logging.info(f"Fetched data for {ticker}: {price}")
                 except Exception as e:
                     logging.error(f"Error fetching data for {ticker}: {e}")
-            
+            inserted = False
             for ticker, price in results.items():
                 try:
                     logging.info(f"Inserting data into database for ticker: {ticker}, price: {price}")
@@ -64,10 +80,19 @@ def main():
                                    (ticker, price))
                     conn.commit()
                     logging.info(f"Inserted data for {ticker}: {price}")
+                    inserted=True
                 except Exception as e:
                     logging.error(f"Error inserting data for {ticker}: {e}")
-            
+            if inserted :
+                # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
+                producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
+                #logging.info("eseguito il produce ")
+                producer.flush()
+            #logging.info("mi  addormento ")
             time.sleep(60)
+             #logging.info("mi sveglio dopo 60 secondi")
+
+    
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
     finally:

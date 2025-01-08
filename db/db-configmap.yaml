@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-script
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS users;
+    USE users;
+
+    CREATE TABLE IF NOT EXISTS users (
+        email VARCHAR(255) PRIMARY KEY,
+        ticker VARCHAR(10),
+        low_value FLOAT DEFAULT NONE,
+        high_value FLOAT DEFAULT NONE,
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_prices (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ticker VARCHAR(10) NOT NULL,
+        price FLOAT,
+        timestamp TIMESTAMP
+    );

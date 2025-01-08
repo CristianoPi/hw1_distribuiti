@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertnotificationsystem
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertnotificationsystem
+  template:
+    metadata:
+      labels:
+        app: alertnotificationsystem
+    spec:
+      containers:
+      - name: alertnotificationsystem
+        image: your_alertnotificationsystem_image
