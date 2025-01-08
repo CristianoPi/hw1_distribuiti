@@ -16,7 +16,7 @@ def soglia():
         return None, None
 
 def run():
-    with grpc.insecure_channel('localhost:50051') as channel:
+    with grpc.insecure_channel('localhost:30001') as channel:
         command_stub = user_pb2_grpc.UserCommandServiceStub(channel)
         query_stub = user_pb2_grpc.UserQueryServiceStub(channel)
 

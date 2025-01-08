@@ -1,0 +1,18 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertsystem
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertsystem
+  template:
+    metadata:
+      labels:
+        app: alertsystem
+    spec:
+      containers:
+      - name: alertsystem
+        image: your_alertsystem_image
