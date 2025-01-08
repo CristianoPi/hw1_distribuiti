@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: server
-        image: peppe2000/my_server_image:latest
+        image: cr1000/my_server_image:latest
+        # image: peppe2000/my_server_image:latest
         ports:
         - containerPort: 50051
         env:

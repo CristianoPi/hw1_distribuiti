@@ -1,4 +1,22 @@
-docker build -t peppe2000/my_server_image:latest ./server
- docker push peppe2000/my_server_image:latest
-  kubectl apply -f server-deployment.yaml
-   kubectl apply -f server-service.yaml   
+creare l'immagine --> docker build -t peppe2000/my_server_image:latest ./server
+creare l'immagine --> docker build -t cr1000/my_server_image:latest ./server
+push in docker hub --> docker push peppe2000/my_server_image:latest
+push in docker hub --> docker push cr1000/my_server_image:latest
+
+kubectl apply -f server-deployment.yaml
+kubectl apply -f server-service.yaml   
+
+in ordine:
+apply db
+
+build server
+push server
+
+apply zookeeper
+apply kafka
+
+build datacollector
+push data
+apply datacollector
+
+alertsystem
