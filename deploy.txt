@@ -1,0 +1,4 @@
+docker build -t peppe2000/my_server_image:latest ./server
+ docker push peppe2000/my_server_image:latest
+  kubectl apply -f server-deployment.yaml
+   kubectl apply -f server-service.yaml   
