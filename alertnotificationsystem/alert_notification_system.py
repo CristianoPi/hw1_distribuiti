@@ -51,7 +51,11 @@ def process_message(message):
     alert_data = json.loads(alert)
     email = alert_data.get('email')  # Usa l'email dal messaggio, con un valore di default
     send_email(email, alert, email_conf)
-    consumer.commit(asynchronous=False)
+    try:
+        consumer.commit(asynchronous=False)
+        logging.info("Offset committed")
+    except KafkaError as e:
+        logging.error(f"Commit failed: {e}")
 
 def main():
     try:
@@ -66,8 +70,6 @@ def main():
                     logging.error(msg.error())
                     break
             process_message(msg)
-            # Commit dell'offset dopo aver processato il messaggio
-            consumer.commit(asynchronous=False)
     except Exception as e:
         logging.error(f"Error in AlertNotificationSystem: {e}")
     finally:

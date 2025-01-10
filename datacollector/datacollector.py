@@ -4,13 +4,16 @@ import mysql.connector
 import yfinance as yf
 from confluent_kafka import Producer
 from circuit_breaker import CircuitBreaker
-
-#non cambia quasi nulla notifichiamo solamente ad alert system quando aggiorniamo il tutto
+from prometheus_client import start_http_server, Gauge, Counter
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=30)
+
+response_time_gauge = Gauge('response_time_seconds', 'Response time of fetching stock price', ['service', 'node'])
+request_counter = Counter('total_requests', 'Total number of requests', ['service', 'node'])
+error_counter = Counter('total_errors', 'Total number of errors', ['service', 'node'])
 
 # Configura il producer Kafka
 conf = {
@@ -26,8 +29,12 @@ def delivery_report(err, msg):
         logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 def fetch_stock_price(ticker):
+    start_time = time.time()
     stock = yf.Ticker(ticker)
-    return stock.history(period="1d")['Close'].iloc[-1]
+    price = stock.history(period="1d")['Close'].iloc[-1]
+    response_time = time.time() - start_time
+    response_time_gauge.labels(service='datacollector', node='worker').set(response_time)
+    return price
 
 def create_table_if_not_exists(cursor):
     cursor.execute("""
@@ -67,11 +74,13 @@ def main():
             for (ticker,) in tickers:
                 try:
                     logging.info(f"Fetching data for ticker: {ticker}")
+                    request_counter.labels(service='datacollector', node='worker').inc()
                     price = circuit_breaker.call(fetch_stock_price, ticker)
                     results[ticker] = price
                     logging.info(f"Fetched data for {ticker}: {price}")
                 except Exception as e:
                     logging.error(f"Error fetching data for {ticker}: {e}")
+                    error_counter.labels(service='datacollector', node='worker').inc()
             inserted = False
             for ticker, price in results.items():
                 try:
@@ -92,7 +101,6 @@ def main():
             #logging.info("mi  addormento ")
             time.sleep(60)
              #logging.info("mi sveglio dopo 60 secondi")
-
     
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
@@ -103,4 +111,6 @@ def main():
             logging.info("Database connection closed.")
 
 if __name__ == "__main__":
+    # Avvia il server HTTP di Prometheus sulla porta 8000
+    start_http_server(8000)
     main()

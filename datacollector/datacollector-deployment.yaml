@@ -21,3 +21,5 @@ spec:
           value: "db"
         - name: DB_PORT
           value: "3306"
+        ports:
+        - containerPort: 8000  # Porta per le metriche Prometheus
