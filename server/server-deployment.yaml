@@ -1,4 +1,3 @@
-# prova
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,8 +14,8 @@ spec:
     spec:
       containers:
       - name: server
-        image: cr1000/my_server_image:latest
-        # image: peppe2000/my_server_image:latest
+        image: docker.io/library/my_server_image:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 50051
         env:

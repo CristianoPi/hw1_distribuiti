@@ -85,6 +85,7 @@ def main():
                     logging.error(f"Error inserting data for {ticker}: {e}")
             if inserted :
                 # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
+                #!rendere la chiamata asincrona
                 producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
                 #logging.info("eseguito il produce ")
                 producer.flush()

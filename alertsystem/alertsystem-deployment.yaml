@@ -15,4 +15,5 @@ spec:
     spec:
       containers:
       - name: alertsystem
-        image: your_alertsystem_image
+        image: docker.io/library/my_alertsystem_image:latest
+        imagePullPolicy: IfNotPresent

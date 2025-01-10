@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   name: kafka
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: kafka
@@ -15,6 +14,7 @@ spec:
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9092
         env:
@@ -24,6 +24,8 @@ spec:
           value: "zookeeper:2181"
         - name: KAFKA_ADVERTISED_LISTENERS
           value: "PLAINTEXT://kafka:9092"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://0.0.0.0:9092"
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
           value: "1"
         - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE

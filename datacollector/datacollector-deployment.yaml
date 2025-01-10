@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: datacollector
-        image: peppe2000/my_datacollector_image:latest
+        image: docker.io/library/my_datacollector_image:latest
+        imagePullPolicy: IfNotPresent
         env:
         - name: DB_HOST
           value: "db"
