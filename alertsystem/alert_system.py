@@ -3,6 +3,7 @@ import logging
 import mysql.connector
 import json
 from confluent_kafka import Consumer, KafkaError, Producer
+from confluent_kafka.admin import AdminClient, NewTopic
 from prometheus_client import start_http_server, Gauge, Counter
 
 # Configura il logging
@@ -10,6 +11,20 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 request_counter = Counter('total_requests', 'Total number of requests', ['service', 'node'])
 error_counter = Counter('total_errors', 'Total number of errors', ['service', 'node'])
+gauge_metric = Gauge('custom_gauge_metric', 'A custom gauge metric', ['service', 'node'])
+
+def create_topic(topic_name, bootstrap_servers='kafka:9092'):
+    admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+    topic_list = [NewTopic(topic_name, num_partitions=1, replication_factor=1)]
+    fs = admin_client.create_topics(topic_list)
+
+    for topic, f in fs.items():
+        try:
+            f.result()  # The result itself is None
+            logging.info(f"Topic {topic} created successfully.")
+        except Exception as e:
+            logging.error(f"Failed to create topic {topic}: {e}")
+
 
 # Configura il consumer Kafka
 consumer_conf = {
@@ -90,6 +105,7 @@ def process_message(message):
     alert = message.value().decode('utf-8')
     logging.info(f"Received alert: {alert}")
     request_counter.labels(service='alertsystem', node='worker').inc()
+    gauge_metric.labels(service='alertsystem', node='worker').set(1)  # Imposta la metrica gauge a 1 quando viene ricevuto un messaggio
     if alert == 'Database updated':
         try:
             conn = mysql.connector.connect(
@@ -112,6 +128,11 @@ def process_message(message):
     logging.info("Offset committed")            
 
 def main():
+    create_topic('AlertSystem')
+    create_topic('AlertNotificationSystem')
+    # Quando provi a creare un topic che già esiste utilizzando la libreria confluent_kafka, 
+    # otterrai un'eccezione TopicAlreadyExistsError. Tuttavia, questa eccezione non interromperà l'esecuzione del programma, 
+    # a meno che tu non la gestisca esplicitamente.
     try:
         while True:
             msg = consumer.poll(1.0)
@@ -122,8 +143,9 @@ def main():
                     continue
                 else:
                     logging.error(msg.error())
-                    break
-            process_message(msg)
+                    error_counter.labels(service='alertsystem', node='worker').inc()
+            else:
+                process_message(msg)
     
     except Exception as e:
         logging.error(f"Error in AlertSystem: {e}")

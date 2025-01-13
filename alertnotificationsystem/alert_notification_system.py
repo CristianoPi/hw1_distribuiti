@@ -82,8 +82,10 @@ def main():
                     continue
                 else:
                     logging.error(msg.error())
-                    break
-            process_message(msg)
+                    error_counter.labels(service='alertsystem', node='worker').inc()
+            else:
+                process_message(msg)
+                
     except Exception as e:
         logging.error(f"Error in AlertNotificationSystem: {e}")
         error_counter.labels(service='alertnotificationsystem', node='worker').inc()

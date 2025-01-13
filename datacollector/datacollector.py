@@ -2,7 +2,7 @@ import time
 import logging
 import mysql.connector
 import yfinance as yf
-from confluent_kafka import Producer
+from confluent_kafka import Producer, KafkaError
 from circuit_breaker import CircuitBreaker
 from prometheus_client import start_http_server, Gauge, Counter
 
@@ -30,23 +30,32 @@ def delivery_report(err, msg):
         logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 def fetch_stock_price(ticker):
-    
-    start_time = time.time()
-    stock = yf.Ticker(ticker)
-    price = stock.history(period="1d")['Close'].iloc[-1]
-    response_time = time.time() - start_time
-    response_time_gauge.labels(service='datacollector', node='worker').set(response_time)
-    return price
+    try:
+        start_time = time.time()
+        stock = yf.Ticker(ticker)
+        price = stock.history(period="1d")['Close'].iloc[-1]
+        response_time = time.time() - start_time
+        response_time_gauge.labels(service='datacollector', node='worker').set(response_time)
+        return price
+    except Exception as e:
+        logging.error(f"Error fetching stock price for {ticker}: {e}")
+        error_counter.labels(service='datacollector', node='worker').inc()
+        raise
 
 def create_table_if_not_exists(cursor):
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS stock_prices (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            ticker VARCHAR(10) NOT NULL,
-            price FLOAT,
-            timestamp TIMESTAMP
-        )
-    """)
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_prices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                ticker VARCHAR(10) NOT NULL,
+                price FLOAT,
+                timestamp TIMESTAMP
+            )
+        """)
+    except Exception as e:
+        logging.error(f"Error creating table: {e}")
+        error_counter.labels(service='datacollector', node='worker').inc()
+        raise
 
 def main():
     try:
@@ -95,18 +104,27 @@ def main():
                 except Exception as e:
                     logging.error(f"Error inserting data for {ticker}: {e}")
                     error_counter.labels(service='datacollector', node='worker').inc()
-            if inserted :
+            if inserted:
                 # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
-                #!rendere la chiamata asincrona
-                producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
-                #logging.info("eseguito il produce ")
-                producer.flush()
-            #logging.info("mi  addormento ")
+                max_retries = 3
+                retries = 0
+                while retries < max_retries:
+                    try:
+                        producer.produce('AlertSystem', key='db_update', value='Database updated', callback=delivery_report)
+                        producer.flush()
+                        break  # Esce dal ciclo se produce è successo
+                    except KafkaError as e:
+                        retries += 1
+                        logging.error(f"Produce failed: {e}. Retrying ({retries}/{max_retries})...")
+                        time.sleep(2)  # Attende prima di riprovare
+
             time.sleep(60)
-             #logging.info("mi sveglio dopo 60 secondi")
     
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
+        error_counter.labels(service='datacollector', node='worker').inc()
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
         error_counter.labels(service='datacollector', node='worker').inc()
     finally:
         if conn.is_connected():

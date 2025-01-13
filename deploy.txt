@@ -36,6 +36,7 @@ apply in ordine:("kubectl apply -f ."  in ogni cartella)
 -datacollector
 -alertsystem
 -alertnotificationsystem
+- prometheus
 
 
 
@@ -50,6 +51,7 @@ total_requests_total{service="datacollector", node="worker"} numero totale di ri
 
 total_errors_total{service="datacollector", node="worker"} non mi restituisce nessun dato, forse perchp non ci sono stati errori ?
 
+response_time_seconds{service="datacollector", node="worker"}
 
 total_requests_created{service="datacollector", node="worker"} tempo passato in secondi dal tempo unix
 
@@ -69,3 +71,18 @@ messages_received_total{service="alertnotificationsystem", node="worker"}
 
 Tempo di elaborazione dei messaggi:
 message_processing_time_seconds{service="alertnotificationsystem", node="worker"}
+
+---
+
+
+response_time_seconds{service="datacollector", node="worker"}
+
+Query per alertsystem
+Numero totale di richieste:
+
+total_requests_total{service="alertsystem", node="worker"}
+Numero totale di errori:
+
+total_errors_total{service="alertsystem", node="worker"}
+
+custom_gauge_metric{service="alertsystem", node="worker"}
