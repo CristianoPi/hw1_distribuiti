@@ -1,0 +1,38 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: my-kind-cluster
+nodes:
+  - role: control-plane
+    labels:
+      custom-label: "control-plane"
+    ## The following is required to enable ingress on the control-plane node
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      - containerPort: 30001
+        hostPort: 30001
+        protocol: TCP
+      - containerPort: 30090 # Prometheus NodePort
+        hostPort: 30090 # port exposed on "host" machine for Prometheus
+      - containerPort: 8001 # alertsystem NodePort
+        hostPort: 30081 # port exposed on "host" machine for alertsystem
+      - containerPort: 8002 # alertnotificationsystem NodePort
+        hostPort: 30082 # port exposed on "host" machine for alertnotificationsystem
+  - role: worker
+    labels:
+      custom-label: "worker"
+    extraPortMappings:
+      - containerPort: 30092 # internal kafka nodeport
+        hostPort: 9092 # port exposed on "host" machine for kafka
+      - containerPort: 30093 # metrics kafka nodeport
+        hostPort: 9093 # port exposed on "host" machine for kafka metrics
