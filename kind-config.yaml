@@ -24,6 +24,10 @@ nodes:
         protocol: TCP
       - containerPort: 30090 # Prometheus NodePort
         hostPort: 30090 # port exposed on "host" machine for Prometheus
+      - containerPort: 8001 # alertsystem NodePort
+        hostPort: 30081 # port exposed on "host" machine for alertsystem
+      - containerPort: 8002 # alertnotificationsystem NodePort
+        hostPort: 30082 # port exposed on "host" machine for alertnotificationsystem
   - role: worker
     labels:
       custom-label: "worker"

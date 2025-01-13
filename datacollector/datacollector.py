@@ -25,10 +25,12 @@ producer = Producer(conf)
 def delivery_report(err, msg):
     if err is not None:
         logging.error(f"Message delivery failed: {err}")
+        error_counter.labels(service='datacollector', node='worker').inc()
     else:
         logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 def fetch_stock_price(ticker):
+    
     start_time = time.time()
     stock = yf.Ticker(ticker)
     price = stock.history(period="1d")['Close'].iloc[-1]
@@ -92,6 +94,7 @@ def main():
                     inserted=True
                 except Exception as e:
                     logging.error(f"Error inserting data for {ticker}: {e}")
+                    error_counter.labels(service='datacollector', node='worker').inc()
             if inserted :
                 # Invia un messaggio a Kafka per notificare che il database è stato aggiornato
                 #!rendere la chiamata asincrona
@@ -104,6 +107,7 @@ def main():
     
     except mysql.connector.Error as db_err:
         logging.error(f"Database connection error: {db_err}")
+        error_counter.labels(service='datacollector', node='worker').inc()
     finally:
         if conn.is_connected():
             cursor.close()

@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: alertnotificationsystem
+  labels:
+    app: alertnotificationsystem
 spec:
   replicas: 1
   selector:
@@ -16,3 +18,5 @@ spec:
       - name: alertnotificationsystem
         image: docker.io/library/my_alertnotificationsystem_image:latest
         imagePullPolicy: IfNotPresent
+        ports:
+            - containerPort: 8002

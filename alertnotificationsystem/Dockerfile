@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install confluent_kafka
+RUN pip install confluent_kafka prometheus_client
 
 RUN apt-get update && apt-get install -y \
     ssmtp \

@@ -44,3 +44,9 @@ data:
       - job_name: 'datacollector'
         static_configs:
           - targets: ['datacollector:8000']
+      - job_name: 'alertsystem'
+        static_configs:
+          - targets: ['alertsystem:8001']
+      - job_name: 'alertnotificationsystem'
+        static_configs:
+          - targets: ['alertnotificationsystem:8002']

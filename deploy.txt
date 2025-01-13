@@ -36,3 +36,36 @@ apply in ordine:("kubectl apply -f ."  in ogni cartella)
 -datacollector
 -alertsystem
 -alertnotificationsystem
+
+
+
+----
+query
+
+response_time_seconds{service="datacollector", node="worker"}
+
+
+total_requests_total{service="datacollector", node="worker"} numero totale di richieste nel tempo,
+
+
+total_errors_total{service="datacollector", node="worker"} non mi restituisce nessun dato, forse perchp non ci sono stati errori ?
+
+
+total_requests_created{service="datacollector", node="worker"} tempo passato in secondi dal tempo unix
+
+da fare mettere metriche in alertsystem e alertnotificationsystem mappare su prometheus le rispettive porte e controlalre se le prende con le query
+
+query per alertnotificationsystem:
+
+Numero totale di email inviate:
+emails_sent_total{service="alertnotificationsystem", node="worker"}
+
+Numero totale di errori:
+total_errors_total{service="alertnotificationsystem", node="worker"}
+
+per provare queste due devo rifare le immagini del alartnotififcation
+Numero totale di messaggi ricevuti:
+messages_received_total{service="alertnotificationsystem", node="worker"}
+
+Tempo di elaborazione dei messaggi:
+message_processing_time_seconds{service="alertnotificationsystem", node="worker"}

@@ -3,9 +3,13 @@ import logging
 import mysql.connector
 import json
 from confluent_kafka import Consumer, KafkaError, Producer
+from prometheus_client import start_http_server, Gauge, Counter
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+request_counter = Counter('total_requests', 'Total number of requests', ['service', 'node'])
+error_counter = Counter('total_errors', 'Total number of errors', ['service', 'node'])
 
 # Configura il consumer Kafka
 consumer_conf = {
@@ -21,13 +25,13 @@ consumer.subscribe(['AlertSystem'])
 producer_conf = {
     'bootstrap.servers': 'kafka:9092',
     'client.id': 'alert_system',
-    'enable.auto.commit': False
 }
 producer = Producer(producer_conf)
 
 def delivery_report(err, msg):
     if err is not None:
         logging.error(f"Message delivery failed: {err}")
+        error_counter.labels(service='alertsystem', node='worker').inc()
     else:
         logging.info(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
@@ -85,6 +89,7 @@ def check_thresholds_and_alert(cursor, conn):
 def process_message(message):
     alert = message.value().decode('utf-8')
     logging.info(f"Received alert: {alert}")
+    request_counter.labels(service='alertsystem', node='worker').inc()
     if alert == 'Database updated':
         try:
             conn = mysql.connector.connect(
@@ -97,6 +102,7 @@ def process_message(message):
             check_thresholds_and_alert(cursor, conn)
         except mysql.connector.Error as db_err:
             logging.error(f"Database connection error: {db_err}")
+            error_counter.labels(service='alertsystem', node='worker').inc()
         finally:
             if conn.is_connected():
                 cursor.close()
@@ -126,4 +132,5 @@ def main():
         logging.info("Consumer closed.")
 
 if __name__ == "__main__":
+    start_http_server(8001)  # Avvia il server HTTP di Prometheus sulla porta 8001
     main()

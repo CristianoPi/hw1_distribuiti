@@ -4,10 +4,15 @@ from email.mime.text import MIMEText
 from confluent_kafka import Consumer, KafkaError
 import time
 import json
+from prometheus_client import start_http_server, Counter, Gauge
 
 # Configura il logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+email_counter = Counter('emails_sent', 'Total number of emails sent', ['service', 'node'])
+error_counter = Counter('total_errors', 'Total number of errors', ['service', 'node'])
+message_counter = Counter('messages_received', 'Total number of messages received', ['service', 'node'])
+processing_time_gauge = Gauge('message_processing_time_seconds', 'Time taken to process a message', ['service', 'node'])
 # Configura il consumer Kafka
 conf = {
     'bootstrap.servers': 'kafka:9092',
@@ -42,10 +47,13 @@ def send_email(email, alert, email_conf):
             logging.info("Connessione SMTP...")
             server.sendmail(email_conf['from_email'], email, msg.as_string())
             logging.info(f"Email sent to {email}: {alert}")
+            email_counter.labels(service='alertnotificationsystem', node='worker').inc()
     except Exception as e:
         logging.error(f"Error sending email: {e}")
+        error_counter.labels(service='alertnotificationsystem', node='worker').inc()
 
 def process_message(message):
+    start_time = time.time()
     alert = message.value().decode('utf-8')
     logging.info(f"Received alert: {alert}")
     alert_data = json.loads(alert)
@@ -56,6 +64,12 @@ def process_message(message):
         logging.info("Offset committed")
     except KafkaError as e:
         logging.error(f"Commit failed: {e}")
+        error_counter.labels(service='alertnotificationsystem', node='worker').inc()
+
+        
+    processing_time = time.time() - start_time
+    processing_time_gauge.labels(service='alertnotificationsystem', node='worker').set(processing_time)
+    message_counter.labels(service='alertnotificationsystem', node='worker').inc()
 
 def main():
     try:
@@ -72,10 +86,12 @@ def main():
             process_message(msg)
     except Exception as e:
         logging.error(f"Error in AlertNotificationSystem: {e}")
+        error_counter.labels(service='alertnotificationsystem', node='worker').inc()
     finally:
         consumer.close()
         logging.info("Consumer closed.")
 
 if __name__ == "__main__": 
+    start_http_server(8002)
     time.sleep(20)
     main()
