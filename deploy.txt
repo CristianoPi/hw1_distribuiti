@@ -30,7 +30,6 @@ total_requests_total{service="datacollector", node="worker"} numero totale di ri
 
 total_errors_total{service="datacollector", node="worker"} non mi restituisce nessun dato, forse perchp non ci sono stati errori ?
 
-response_time_seconds{service="datacollector", node="worker"}
 
 total_requests_created{service="datacollector", node="worker"} tempo passato in secondi dal tempo unix
 
@@ -64,4 +63,4 @@ Numero totale di errori:
 
 total_errors_total{service="alertsystem", node="worker"}
 
-custom_gauge_metric{service="alertsystem", node="worker"}
+message_processing_time_seconds{service="alertsystem", node="worker"}

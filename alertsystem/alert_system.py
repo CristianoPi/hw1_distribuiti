@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 request_counter = Counter('total_requests', 'Total number of requests', ['service', 'node'])
 error_counter = Counter('total_errors', 'Total number of errors', ['service', 'node'])
-gauge_metric = Gauge('custom_gauge_metric', 'A custom gauge metric', ['service', 'node'])
+processing_time_gauge = Gauge('message_processing_time_seconds', 'Time taken to process a message', ['service', 'node'])
 
 def create_topic(topic_name, bootstrap_servers='kafka:9092'):
     admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
@@ -77,10 +77,7 @@ def check_thresholds_and_alert(cursor, conn):
             #producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
             producer.flush()
             # Aggiorna i valori di soglia nel database
-            if low_value is not None and price < low_value:
-                cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
-            if high_value is not None and price > high_value:
-                cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
+            cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s AND email = %s", (price, ticker, email))
             conn.commit()
 
         if high_value!=0 and price > high_value :
@@ -95,17 +92,14 @@ def check_thresholds_and_alert(cursor, conn):
             #producer.produce('AlertNotificationSystem', key=ticker, value="prova", callback=delivery_report)
             producer.flush()
             # Aggiorna i valori di soglia nel database
-            if low_value is not None and price < low_value:
-                cursor.execute("UPDATE users SET low_value = %s WHERE ticker = %s", (price, ticker))
-            if high_value is not None and price > high_value:
-                cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s", (price, ticker))
+            cursor.execute("UPDATE users SET high_value = %s WHERE ticker = %s AND email = %s", (price, ticker, email))
             conn.commit()
 
 def process_message(message):
+    start_time = time.time()
     alert = message.value().decode('utf-8')
     logging.info(f"Received alert: {alert}")
     request_counter.labels(service='alertsystem', node='worker').inc()
-    gauge_metric.labels(service='alertsystem', node='worker').set(1)  # Imposta la metrica gauge a 1 quando viene ricevuto un messaggio
     if alert == 'Database updated':
         try:
             conn = mysql.connector.connect(
@@ -125,7 +119,9 @@ def process_message(message):
                 conn.close()
                 logging.info("Database connection closed.")
     consumer.commit(asynchronous=False)
-    logging.info("Offset committed")            
+    logging.info("Offset committed")     
+    processing_time = time.time() - start_time
+    processing_time_gauge.labels(service='alertsystem', node='worker').set(processing_time)  # Imposta la metrica al tempo di elaborazione       
 
 def main():
     create_topic('AlertSystem')
