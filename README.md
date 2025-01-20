@@ -30,4 +30,4 @@ La relazione dell'hw1, con tutti i dettagli, si trova nella repository al seguen
 
 La relazione dell'hw2, con tutti i dettagli, si trova nella repository al seguente link: https://github.com/CristianoPi/hw1_distribuiti/blob/hw2/Relazione_HW2.pdf
 
-La relazione dell'hw2, con tutti i dettagli, si trova nella repository al seguente link: https://github.com/CristianoPi/hw1_distribuiti/blob/hw2/Relazione_HW3.pdf
+La relazione dell'hw3, con tutti i dettagli, si trova nella repository al seguente link: https://github.com/CristianoPi/hw1_distribuiti/blob/hw2/Relazione_HW3.pdf
