@@ -9,4 +9,4 @@ spec:
     - protocol: TCP
       port: 8000  # Porta per le metriche Prometheus
       targetPort: 8000
-  type: ClusterIP
+  type: NodePort
