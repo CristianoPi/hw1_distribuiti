@@ -3,21 +3,15 @@ import grpc
 import user_pb2
 import user_pb2_grpc
 import mysql.connector
-
 import logging
 from datetime import datetime, timedelta
 
-
-#funzione per normalizzare le mail, la mail non è case sensitive e non è sensibile ai punti, salviamo le mail tutte minuscole e senza punti nel db per evitare di salvare due vote la stessa email, è una chiave primaria!
 def normalize_email(email):
     local, domain = email.split('@')
-    # Converte il dominio in minuscolo
     domain = domain.lower()
-    # Normalizza la parte locale solo per i domini comuni che ignorano i punti
     if domain in ['gmail.com', 'googlemail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com']:
         local = local.lower()
         local = local.replace('.', '')
-    # Mantiene la parte locale sensibile alle maiuscole per altri domini
     return f"{local}@{domain}"
 
 class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
@@ -57,12 +51,10 @@ class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
             try:
                 logging.info(f"il valore low : {request.low_value}.")
                 
-                # Check for negative values
                 if request.low_value < 0 or request.high_value < 0:
                     self.requestRegister.pop(normalized_email, None)
                     return user_pb2.RegisterUserResponse(message="Invalid input: values cannot be negative")
                 
-                # Check if both values are greater than zero and low_value < high_value
                 if request.low_value > 0 and request.high_value > 0:
                     if request.low_value < request.high_value:
                         cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
@@ -77,7 +69,6 @@ class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
                         self.requestRegister.pop(normalized_email, None)
                         return user_pb2.RegisterUserResponse(message="Invalid input: low_value must be less than high_value")
                 
-                # If at least one value is zero, insert directly
                 elif request.low_value == 0 or request.high_value == 0:
                     cursor.execute("INSERT INTO users (email, ticker, low_value, high_value) VALUES (%s, %s, %s, %s)", 
                                 (normalized_email, request.ticker, request.low_value, request.high_value))
@@ -117,8 +108,6 @@ class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
                     return user_pb2.UpdateUserResponse(message="User already updated successfully")
                 elif self.requestUpdate[key] == 2:
                     return user_pb2.UpdateUserResponse(message="invalid input") 
-                #usando il nostro client  non saremmo mai in questa condizione 
-                # in quanto gli input non validi non vengono neanche trasmessi al server
 
             keys_to_delete = [k for k in self.requestUpdate if k[0] == normalized_email]
             for k in keys_to_delete:
@@ -128,13 +117,11 @@ class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
             logging.info(f"Current state of requestUpdate after setting key to 0: {self.requestUpdate}")
             cursor = self.conn.cursor()
             try:
-                #in teoria al server non dovrebbero mai arrivare i valori negativi in quanto c'è un controllo nel client 
                 if request.low_value < 0 or request.high_value < 0:
                     self.requestUpdate[key] = 2
                     logging.info(f"Current state of requestUpdate after invalid input: {self.requestUpdate}")
                     return user_pb2.UpdateUserResponse(message="Invalid input: values cannot be negative")
                 
-                 #in teoria al server non dovrebbero mai arrivare valori che violano questo vincolo
                 if request.low_value > 0 and request.high_value > 0:
                     if request.low_value < request.high_value:
                         cursor.execute(
@@ -264,98 +251,10 @@ class UserCommandService(user_pb2_grpc.UserCommandServiceServicer):
             return user_pb2.DeleteDataByTimeResponse(message="An error occurred while deleting data.")
         finally:
             cursor.close()    
-        
-class UserQueryService(user_pb2_grpc.UserQueryServiceServicer):
 
-    def __init__(self):
-        self.conn = mysql.connector.connect(
-            host="db",
-            user="user",
-            password="password",
-            database="users"
-        )
-        logging.basicConfig(level=logging.INFO)
-
-    def GetAllData(self, request, context):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
-            cursor.execute("SHOW TABLES")
-            tables = cursor.fetchall()
-            data = []
-            for table in tables:
-                cursor.execute(f"SELECT * FROM {table[0]}")
-                rows = cursor.fetchall()
-                data.append(f"Table: {table[0]}")
-                for row in rows:
-                    data.append(str(row))
-            return user_pb2.AllDataResponse(data=data)
-        except mysql.connector.Error as db_err:
-            logging.error(f"Database error: {db_err}")
-            return user_pb2.AllDataResponse(data=["An error occurred while retrieving data."])
-        finally:
-            cursor.close()
-
-    def GetLastStockValue(self, request, context):
-        normalized_email = normalize_email(request.email)
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
-            cursor.execute("""
-                SELECT sp.price 
-                FROM stock_prices sp
-                JOIN users u ON sp.ticker = u.ticker
-                WHERE u.email = %s
-                ORDER BY sp.timestamp DESC LIMIT 1
-            """, (normalized_email,))
-            result = cursor.fetchone()
-            if result:
-                return user_pb2.StockValueResponse(message="Last stock value retrieved successfully", value=result[0])
-            else:
-                return user_pb2.StockValueResponse(message="No stock value found for the given email", value=0.0)
-        except mysql.connector.Error as db_err:
-            logging.error(f"Database error: {db_err}")
-            return user_pb2.StockValueResponse(message="An error occurred while retrieving the last stock value.", value=0.0)
-        finally:
-            cursor.close()
-
-    def GetAverageStockValue(self, request, context):
-        normalized_email = normalize_email(request.email)
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
-            cursor.execute("SELECT ticker FROM users WHERE email = %s", (normalized_email,))
-            user_ticker = cursor.fetchone()
-            
-            if user_ticker:
-                cursor.execute("""
-                    SELECT sp.price 
-                    FROM stock_prices sp
-                    JOIN users u ON sp.ticker = u.ticker
-                    WHERE u.email = %s AND u.ticker = %s
-                    ORDER BY sp.timestamp DESC LIMIT %s
-                """, (normalized_email, user_ticker[0], request.count))
-                results = cursor.fetchall()
-                if results:
-                    average_value = sum([r[0] for r in results]) / len(results)
-                    return user_pb2.StockValueResponse(message="Average stock value calculated successfully", value=average_value)
-                else:
-                    return user_pb2.StockValueResponse(message="No stock values found for the given email and ticker", value=0.0)
-            else:
-                return user_pb2.StockValueResponse(message="No ticker found for the given email", value=0.0)
-        except mysql.connector.Error as db_err:
-            logging.error(f"Database error: {db_err}")
-            return user_pb2.StockValueResponse(message="An error occurred while calculating the average stock value.", value=0.0)
-        finally:
-            cursor.close()
-
-    
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    
     user_pb2_grpc.add_UserCommandServiceServicer_to_server(UserCommandService(), server)
-    user_pb2_grpc.add_UserQueryServiceServicer_to_server(UserQueryService(), server)
-    
     server.add_insecure_port('[::]:50051')
     server.start()
     server.wait_for_termination()

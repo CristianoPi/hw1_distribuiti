@@ -13,11 +13,21 @@ spec:
         app: server
     spec:
       containers:
-      - name: server
-        image: docker.io/library/my_server_image:latest
+      - name: user-command-service
+        image: docker.io/library/user-command-service:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 50051
+        env:
+        - name: DB_HOST
+          value: "db"
+        - name: DB_PORT
+          value: "3306"
+      - name: user-query-service
+        image: docker.io/library/user-query-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50052
         env:
         - name: DB_HOST
           value: "db"

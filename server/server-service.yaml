@@ -9,5 +9,11 @@ spec:
     - protocol: TCP
       port: 50051
       targetPort: 50051
-      nodePort: 30001  
+      nodePort: 30001
+      name: user-command-service
+    - protocol: TCP
+      port: 50052
+      targetPort: 50052
+      nodePort: 30002
+      name: user-query-service
   type: NodePort

@@ -8,4 +8,4 @@ RUN pip install mysql-connector-python grpcio grpcio-tools
 
 RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. user.proto
 
-CMD ["python", "server.py"]
+CMD ["python", "user_query_service.py"]

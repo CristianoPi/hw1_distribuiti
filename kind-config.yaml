@@ -22,6 +22,9 @@ nodes:
       - containerPort: 30001
         hostPort: 30001
         protocol: TCP
+      - containerPort: 30002
+        hostPort: 30002
+        protocol: TCP
       - containerPort: 30090 # Prometheus NodePort
         hostPort: 30090 # port exposed on "host" machine for Prometheus
       - containerPort: 8001 # alertsystem NodePort
